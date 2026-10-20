@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:carpinteria_movil_sw2/core/services/llm_service.dart';
 import 'package:carpinteria_movil_sw2/core/services/model_installer.dart';
+import 'package:carpinteria_movil_sw2/core/services/report_export_service.dart';
 import 'package:carpinteria_movil_sw2/presentation/pages/splash/splash_page.dart';
 import 'package:carpinteria_movil_sw2/presentation/pages/voice_test/voice_test_page.dart';
 import 'package:carpinteria_movil_sw2/theme/app_theme.dart';
 
-class VoiceReportPage extends StatelessWidget {
+class VoiceReportPage extends StatefulWidget {
   const VoiceReportPage({super.key});
+
+  @override
+  State<VoiceReportPage> createState() => _VoiceReportPageState();
+}
+
+class _VoiceReportPageState extends State<VoiceReportPage> {
+  final _llmService = LlmService();
+  AiSqlReportResult? _quickReport;
+  bool _loadingQuick = false;
 
   void _openVoiceAssistant(BuildContext context) {
     Navigator.of(context).push(
@@ -14,6 +25,27 @@ class VoiceReportPage extends StatelessWidget {
             ModelInstaller.isReady ? const VoiceTestPage() : const SplashPage(),
       ),
     );
+  }
+
+  Future<void> _runQuickOfflineReport(String requestText) async {
+    setState(() => _loadingQuick = true);
+    try {
+      final res = await _llmService.generateSqlReport(requestText);
+      if (!mounted) return;
+      setState(() {
+        _quickReport = res;
+        _loadingQuick = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingQuick = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 
   @override
@@ -26,7 +58,7 @@ class VoiceReportPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            padding: const EdgeInsets.all(22),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
@@ -48,8 +80,8 @@ class VoiceReportPage extends StatelessWidget {
             child: Column(
               children: [
                 Container(
-                  width: 72,
-                  height: 72,
+                  width: 68,
+                  height: 68,
                   decoration: BoxDecoration(
                     color: AppTheme.accentAmber.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
@@ -61,60 +93,29 @@ class VoiceReportPage extends StatelessWidget {
                   child: const Icon(
                     Icons.mic_rounded,
                     color: AppTheme.accentAmber,
-                    size: 38,
+                    size: 36,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 const Text(
-                  'Asistente de Carpintería por Voz (Offline)',
+                  'Asistente IA + Informes Text-to-SQL',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 19,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
-                  'Impulsado por Whisper ONNX + Qwen3 1.7B ejecutándose 100% en tu dispositivo sin requerir internet.',
+                  'Whisper ONNX + Qwen3 1.7B + SQLite Local.\nGenera consultas SQL seguras sin internet y exporta a PDF, Excel y CSV.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 12.5,
+                    color: Colors.white.withValues(alpha: 0.82),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: ready
-                        ? Colors.green.withValues(alpha: 0.2)
-                        : Colors.orange.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        ready ? Icons.check_circle : Icons.downloading_rounded,
-                        size: 16,
-                        color: ready ? Colors.greenAccent : AppTheme.accentAmber,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        ready
-                            ? 'Modelos IA listos en memoria'
-                            : 'Se cargarán los modelos al abrir el asistente',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -127,8 +128,8 @@ class VoiceReportPage extends StatelessWidget {
                     icon: const Icon(Icons.record_voice_over_rounded),
                     label: Text(
                       ready
-                          ? 'Abrir Asistente de Voz'
-                          : 'Preparar Modelos y Abrir Asistente',
+                          ? 'Abrir Asistente de Voz Completo'
+                          : 'Cargar Modelos IA y Abrir Asistente por Voz',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -137,36 +138,159 @@ class VoiceReportPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
+
           const Text(
-            'Consultas frecuentes sugeridas en el taller',
+            'Generar Informes Rápidos desde SQLite Local (PDF / Excel / CSV)',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 15.5,
               fontWeight: FontWeight.bold,
               color: AppTheme.primaryDarkWood,
             ),
           ),
           const SizedBox(height: 10),
+
           _SuggestionTile(
-            icon: Icons.straighten_rounded,
-            title: 'Cálculo de pies cuadrados (pie²)',
+            icon: Icons.pending_actions_rounded,
+            title: 'Informe de Pedidos Pendientes y Saldos',
             subtitle:
-                'Pregunta: "¿Cuántos pies cuadrados tiene un tablón de 2 pulgadas por 8 pulgadas y 3 metros de largo?"',
-            onTap: () => _openVoiceAssistant(context),
+                'Ejecuta SELECT seguro en SQLite sobre pedidos pendientes y exporta en PDF, Excel o CSV.',
+            onTap: () => _runQuickOfflineReport(
+              'Informe de todos los pedidos pendientes con su monto total y saldo por cobrar',
+            ),
           ),
           _SuggestionTile(
-            icon: Icons.format_paint_rounded,
-            title: 'Recomendación de barnices y selladores',
+            icon: Icons.warning_amber_rounded,
+            title: 'Informe de Maderas e Insumos con Stock Bajo',
             subtitle:
-                'Pregunta: "¿Qué acabado me recomiendas para una puerta de roble expuesta al sol y lluvia?"',
-            onTap: () => _openVoiceAssistant(context),
+                'Consulta la tabla materiales filtrando insumos con alerta de reposición.',
+            onTap: () => _runQuickOfflineReport(
+              'Informe de materiales y maderas con stock bajo en alerta',
+            ),
           ),
           _SuggestionTile(
-            icon: Icons.carpenter_rounded,
-            title: 'Uniones y ensambles de mueblería',
+            icon: Icons.chair_rounded,
+            title: 'Informe General de Catálogo y Precios',
             subtitle:
-                'Pregunta: "¿Cuál es la mejor unión para reforzar sillas de comedor de cedro?"',
-            onTap: () => _openVoiceAssistant(context),
+                'Consulta la tabla productos en SQLite con dimensiones, maderas y precios.',
+            onTap: () => _runQuickOfflineReport(
+              'Listado completo del catálogo de productos y precios de la carpintería',
+            ),
           ),
+
+          if (_loadingQuick)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+
+          if (_quickReport != null) ...[
+            const SizedBox(height: 12),
+            Card(
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.shield_outlined,
+                          color: Colors.green,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Resultado SQLite (${_quickReport!.rows.length} registros)',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: AppTheme.primaryDarkWood,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade900,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _quickReport!.sqlExecuted,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          color: Colors.greenAccent,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _quickReport!.aiConclusion,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.red.shade700,
+                            ),
+                            onPressed: () => ReportExportService.exportToPdf(
+                              title: 'Reporte Offline SQLite',
+                              userQuery: _quickReport!.userQuery,
+                              sqlExecuted: _quickReport!.sqlExecuted,
+                              aiConclusion: _quickReport!.aiConclusion,
+                              rows: _quickReport!.rows,
+                            ),
+                            icon: const Icon(Icons.picture_as_pdf, size: 17),
+                            label: const Text('PDF'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.green.shade700,
+                            ),
+                            onPressed: () => ReportExportService.exportToExcel(
+                              userQuery: _quickReport!.userQuery,
+                              sqlExecuted: _quickReport!.sqlExecuted,
+                              aiConclusion: _quickReport!.aiConclusion,
+                              rows: _quickReport!.rows,
+                            ),
+                            icon: const Icon(Icons.table_view_rounded, size: 17),
+                            label: const Text('Excel'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.blueGrey.shade700,
+                            ),
+                            onPressed: () => ReportExportService.exportToCsv(
+                              userQuery: _quickReport!.userQuery,
+                              aiConclusion: _quickReport!.aiConclusion,
+                              rows: _quickReport!.rows,
+                            ),
+                            icon: const Icon(Icons.description_outlined, size: 17),
+                            label: const Text('CSV'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -207,7 +331,7 @@ class _SuggestionTile extends StatelessWidget {
             style: const TextStyle(fontSize: 12.5, color: Colors.black54),
           ),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded),
+        trailing: const Icon(Icons.play_circle_outline_rounded),
       ),
     );
   }
