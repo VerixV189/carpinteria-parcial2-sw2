@@ -6,8 +6,9 @@ class ModelInstaller {
   static String? _whisperModelPath;
   static String? _llmModelPath;
 
-  static String get whisperModelPath => _whisperModelPath!;
-  static String get llmModelPath => _llmModelPath!;
+  static bool get isReady => _llmModelPath != null && _llmModelPath!.isNotEmpty;
+  static String get whisperModelPath => _whisperModelPath ?? '';
+  static String get llmModelPath => _llmModelPath ?? '';
 
   /// Llamado por [SplashPage] después de copiar los modelos al disco.
   /// Registra los paths finales para que el resto de la app los use.
