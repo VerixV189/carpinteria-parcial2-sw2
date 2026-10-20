@@ -52,3 +52,5 @@ assets/models/whisper/
 assets/models/llm/
 assets/models/vosk/
 android/build/
+
+assets/models/whisper_onnx/

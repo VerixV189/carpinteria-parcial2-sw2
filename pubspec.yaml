@@ -37,10 +37,11 @@ dependencies:
   shared_preferences: ^2.3.0
   http: ^1.2.2
   flutter_dotenv: ^5.2.1
-  vosk_flutter: ^0.3.48
   llamadart: ^0.15.1
   path_provider: ^2.1.0
   permission_handler: ^11.3.1
+  sherpa_onnx: ^1.13.8
+  record: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -72,7 +73,7 @@ flutter:
   uses-material-design: true
   assets:
    - .env
-   - assets/models/vosk/vosk-model-small-es-0.42.zip
+   - assets/models/whisper_onnx/
    - assets/models/llm/Qwen3-1.7B-Q4_K_M.gguf
 
   # To add assets to your application, add an assets section, like this:
