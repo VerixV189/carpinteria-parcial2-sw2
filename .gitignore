@@ -54,3 +54,5 @@ assets/models/vosk/
 android/build/
 
 assets/models/whisper_onnx/
+
+GUIA_ARQUITECTURA_Y_REPORTES_IA.md

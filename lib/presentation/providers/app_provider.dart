@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
 import 'package:carpinteria_movil_sw2/core/storage/local_storage.dart';
+import 'package:carpinteria_movil_sw2/core/storage/sqlite_database.dart';
 import 'package:carpinteria_movil_sw2/data/repositories/repository_impl.dart';
 import 'package:carpinteria_movil_sw2/domain/entities/entity.dart';
 import 'package:carpinteria_movil_sw2/domain/repositories/repository.dart';
@@ -128,6 +129,11 @@ class AppProvider extends ChangeNotifier {
       _products = results[0] as List<ProductEntity>;
       _orders = results[1] as List<OrderEntity>;
       _materials = results[2] as List<WoodMaterialEntity>;
+      await SqliteDatabase.syncAll(
+        products: _products,
+        orders: _orders,
+        materials: _materials,
+      );
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -166,6 +172,11 @@ class AppProvider extends ChangeNotifier {
         deliveryDate: deliveryDate,
       );
       _orders = [created, ..._orders];
+      await SqliteDatabase.syncAll(
+        products: _products,
+        orders: _orders,
+        materials: _materials,
+      );
       notifyListeners();
       return true;
     } catch (e) {
@@ -183,6 +194,11 @@ class AppProvider extends ChangeNotifier {
         final copy = List<OrderEntity>.from(_orders);
         copy[idx] = updated;
         _orders = copy;
+        await SqliteDatabase.syncAll(
+          products: _products,
+          orders: _orders,
+          materials: _materials,
+        );
         notifyListeners();
       }
     } catch (_) {}
