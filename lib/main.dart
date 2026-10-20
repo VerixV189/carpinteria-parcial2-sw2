@@ -1,27 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:carpinteria_movil_sw2/presentation/pages/splash/splash_page.dart';
+import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
+import 'package:carpinteria_movil_sw2/presentation/pages/auth/login_page.dart';
+import 'package:carpinteria_movil_sw2/presentation/pages/home_page.dart';
+import 'package:carpinteria_movil_sw2/presentation/providers/app_provider.dart';
+import 'package:carpinteria_movil_sw2/routes/app_router.dart';
+import 'package:carpinteria_movil_sw2/theme/app_theme.dart';
 
-/// Inicializa los modelos de IA antes de arrancar la app.
-/// La copia solo ocurre la primera vez; las siguientes aperturas usan el disco.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  await AppConfig.init();
+
+  final appProvider = AppProvider();
+  await appProvider.initializeSession();
+
+  runApp(MyApp(provider: appProvider));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final AppProvider? provider;
+
+  const MyApp({super.key, this.provider});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Carpintería Móvil',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
-        useMaterial3: true,
+    final effectiveProvider = provider ?? AppProvider();
+    return AppScope(
+      provider: effectiveProvider,
+      child: MaterialApp(
+        title: AppConfig.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        routes: AppRouter.routes,
+        home: effectiveProvider.isAuthenticated
+            ? const HomePage()
+            : const LoginPage(),
       ),
-      home: const SplashPage(),
     );
   }
 }
-
