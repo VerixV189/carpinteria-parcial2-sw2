@@ -46,3 +46,9 @@ app.*.map.json
 
 # Variables de entorno
 .env
+
+# Modelos de IA (demasiado pesados para el repositorio)
+assets/models/whisper/
+assets/models/llm/
+assets/models/vosk/
+android/build/
