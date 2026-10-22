@@ -89,3 +89,23 @@ class WoodMaterialEntity {
 
   bool get isLowStock => quantity <= minStock;
 }
+
+class CartItemEntity {
+  final ProductEntity product;
+  final int quantity;
+
+  const CartItemEntity({
+    required this.product,
+    this.quantity = 1,
+  });
+
+  double get subtotal => product.price * quantity;
+
+  CartItemEntity copyWith({int? quantity}) {
+    return CartItemEntity(
+      product: product,
+      quantity: quantity ?? this.quantity,
+    );
+  }
+}
+

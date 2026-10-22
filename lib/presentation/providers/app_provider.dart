@@ -13,6 +13,7 @@ class AppProvider extends ChangeNotifier {
   List<ProductEntity> _products = [];
   List<OrderEntity> _orders = [];
   List<WoodMaterialEntity> _materials = [];
+  final List<CartItemEntity> _cart = [];
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -24,6 +25,8 @@ class AppProvider extends ChangeNotifier {
 
   UserEntity? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
+  bool get isClientRole =>
+      (_currentUser?.role.toLowerCase() ?? 'cliente') == 'cliente';
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isUsingMock => _repository.isUsingMock;
@@ -44,9 +47,106 @@ class AppProvider extends ChangeNotifier {
     }).toList();
   }
 
+  /// Solo muebles disponibles a la venta (stock > 0) para el Marketplace del cliente
+  List<ProductEntity> get availableMarketplaceProducts {
+    return filteredProducts.where((p) => p.stock > 0).toList();
+  }
+
   List<ProductEntity> get allProducts => _products;
   List<OrderEntity> get orders => _orders;
   List<WoodMaterialEntity> get materials => _materials;
+
+  /// Pedidos y cotizaciones que pertenecen exclusivamente al cliente actual
+  List<OrderEntity> get clientOrders {
+    final userName = (_currentUser?.name ?? '').trim().toLowerCase();
+    if (userName.isEmpty) return [];
+    return _orders
+        .where((o) => o.clientName.trim().toLowerCase() == userName)
+        .toList();
+  }
+
+  // ── Carrito de Compras del Cliente ────────────────────────────────────────
+
+  List<CartItemEntity> get cartItems => List.unmodifiable(_cart);
+
+  int get cartItemCount =>
+      _cart.fold<int>(0, (sum, item) => sum + item.quantity);
+
+  double get cartTotal =>
+      _cart.fold<double>(0.0, (sum, item) => sum + item.subtotal);
+
+  void addToCart(ProductEntity product, {int quantity = 1}) {
+    final index = _cart.indexWhere((c) => c.product.id == product.id);
+    if (index != -1) {
+      final current = _cart[index];
+      final nextQty = (current.quantity + quantity).clamp(1, product.stock);
+      _cart[index] = current.copyWith(quantity: nextQty);
+    } else {
+      _cart.add(CartItemEntity(product: product, quantity: quantity));
+    }
+    notifyListeners();
+  }
+
+  void updateCartQuantity(String productId, int newQuantity) {
+    final index = _cart.indexWhere((c) => c.product.id == productId);
+    if (index == -1) return;
+    if (newQuantity <= 0) {
+      _cart.removeAt(index);
+    } else {
+      final maxStock = _cart[index].product.stock;
+      _cart[index] = _cart[index].copyWith(
+        quantity: newQuantity.clamp(1, maxStock),
+      );
+    }
+    notifyListeners();
+  }
+
+  void removeFromCart(String productId) {
+    _cart.removeWhere((c) => c.product.id == productId);
+    notifyListeners();
+  }
+
+  void clearCart() {
+    _cart.clear();
+    notifyListeners();
+  }
+
+  Future<bool> checkoutCart({
+    required double advancePayment,
+    required String deliveryNotes,
+  }) async {
+    if (_cart.isEmpty) return false;
+    final clientName = _currentUser?.name ?? 'Cliente';
+    final summaryNames =
+        _cart.map((c) => '${c.product.name} (x${c.quantity})').join(', ');
+    final woods = _cart.map((c) => c.product.woodType).toSet().join(' / ');
+    final total = cartTotal;
+    final maxDays = _cart
+        .map((c) => c.product.estimatedDays)
+        .fold<int>(7, (a, b) => a > b ? a : b);
+    final estDate = DateTime.now().add(Duration(days: maxDays));
+    final dateStr =
+        '${estDate.day.toString().padLeft(2, '0')}/${estDate.month.toString().padLeft(2, '0')}/${estDate.year}';
+
+    final ok = await createOrder(
+      clientName: clientName,
+      productName: summaryNames,
+      woodType: woods,
+      specifications: deliveryNotes.isEmpty
+          ? 'Compra desde Marketplace Móvil'
+          : deliveryNotes,
+      totalAmount: total,
+      advancePayment: advancePayment,
+      deliveryDate: dateStr,
+    );
+    if (ok) {
+      _cart.clear();
+      notifyListeners();
+    }
+    return ok;
+  }
+
+  // ── Sesión y Datos ────────────────────────────────────────────────────────
 
   Future<void> initializeSession() async {
     await LocalStorage.init();
@@ -114,6 +214,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> logout() async {
     await _repository.logout();
     _currentUser = null;
+    _cart.clear();
     notifyListeners();
   }
 

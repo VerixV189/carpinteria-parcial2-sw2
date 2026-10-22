@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
 import 'package:carpinteria_movil_sw2/domain/entities/entity.dart';
+import 'package:carpinteria_movil_sw2/presentation/pages/client/client_home_page.dart';
 import 'package:carpinteria_movil_sw2/presentation/pages/voice_report_page.dart';
 import 'package:carpinteria_movil_sw2/presentation/providers/app_provider.dart';
 import 'package:carpinteria_movil_sw2/routes/app_router.dart';
@@ -192,6 +193,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final provider = AppScope.of(context);
+    if (provider.isClientRole) {
+      return const ClientHomePage();
+    }
     final user = provider.currentUser;
 
     final titles = [
