@@ -86,6 +86,30 @@ class LocalDataSource {
 
   static final List<OrderModel> _mockOrders = [
     const OrderModel(
+      id: 'PED-106',
+      clientName: 'Carlos Mendoza',
+      productName: 'Mesa de Comedor Imperial (8 Personas)',
+      woodType: 'Roble Macizo',
+      specifications: 'Acabado mate natural, entrega en domicilio.',
+      totalAmount: 3450.0,
+      advancePayment: 1725.0,
+      status: 'En fabricación',
+      deliveryDate: '29/10/2026',
+      createdAt: '19/10/2026',
+    ),
+    const OrderModel(
+      id: 'COT-107',
+      clientName: 'Carlos Mendoza',
+      productName: 'Cotización: Ropero a Medida 3 Puertas',
+      woodType: 'Cedro Seleccionado',
+      specifications: 'Medidas especiales 220x60x230 cm con espejo interior.',
+      totalAmount: 4200.0,
+      advancePayment: 0.0,
+      status: 'Pendiente',
+      deliveryDate: '08/11/2026',
+      createdAt: '20/10/2026',
+    ),
+    const OrderModel(
       id: 'PED-104',
       clientName: 'Arq. Roberto Méndez',
       productName: 'Puerta Principal Tablero Rebajado (x2)',
@@ -193,16 +217,21 @@ class LocalDataSource {
       }
     }
 
-    // Usuarios demo por defecto
+    // Por defecto ingresa como cliente (Marketplace), a menos que el correo sea de admin/maestro
     if (password.length >= 4) {
+      final isAdminOrCarpenter = cleanEmail.contains('admin') ||
+          cleanEmail.contains('maestro') ||
+          cleanEmail.contains('taller');
       return UserModel(
-        id: 'USR-DEMO-01',
-        name: cleanEmail.contains('admin')
+        id: isAdminOrCarpenter ? 'USR-ADMIN-01' : 'USR-CLI-01',
+        name: isAdminOrCarpenter
             ? 'Maestro Carpintero (Admin)'
-            : _nameFromEmail(cleanEmail),
+            : (cleanEmail.contains('cliente')
+                ? 'Carlos Mendoza'
+                : _nameFromEmail(cleanEmail)),
         email: cleanEmail,
         phone: '+591 70012345',
-        role: 'carpintero',
+        role: isAdminOrCarpenter ? 'carpintero' : 'cliente',
         token: 'mock-jwt-token-demo',
       );
     }
@@ -248,7 +277,7 @@ class LocalDataSource {
     final formattedNow =
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
     final newOrder = OrderModel(
-      id: 'PED-${106 + _mockOrders.length}',
+      id: 'PED-${108 + _mockOrders.length}',
       clientName: clientName,
       productName: productName,
       woodType: woodType,
@@ -289,7 +318,7 @@ class LocalDataSource {
 
   String _nameFromEmail(String email) {
     final part = email.split('@').first.replaceAll('.', ' ').replaceAll('_', ' ');
-    if (part.isEmpty) return 'Maestro Carpintero';
+    if (part.isEmpty) return 'Cliente Carpintería';
     return part[0].toUpperCase() + part.substring(1);
   }
 }

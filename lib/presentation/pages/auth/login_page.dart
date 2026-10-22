@@ -48,7 +48,14 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _fillDemoCredentials() {
+  void _fillDemoClient() {
+    setState(() {
+      _emailController.text = 'cliente@carpinteria.bo';
+      _passwordController.text = '123456';
+    });
+  }
+
+  void _fillDemoAdmin() {
     setState(() {
       _emailController.text = 'maestro@carpinteria.bo';
       _passwordController.text = '123456';
@@ -254,16 +261,33 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height: 10),
 
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: _fillDemoCredentials,
-                                icon: const Icon(Icons.bolt, size: 16),
-                                label: const Text(
-                                  'Usar cuenta de prueba',
-                                  style: TextStyle(fontSize: 12.5),
+                            Wrap(
+                              spacing: 8,
+                              alignment: WrapAlignment.spaceBetween,
+                              children: [
+                                TextButton.icon(
+                                  onPressed: _fillDemoClient,
+                                  icon: const Icon(
+                                    Icons.storefront_rounded,
+                                    size: 16,
+                                  ),
+                                  label: const Text(
+                                    'Demo Cliente (Marketplace)',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                 ),
-                              ),
+                                TextButton.icon(
+                                  onPressed: _fillDemoAdmin,
+                                  icon: const Icon(
+                                    Icons.admin_panel_settings_outlined,
+                                    size: 16,
+                                  ),
+                                  label: const Text(
+                                    'Demo Admin (Taller)',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 8),
 

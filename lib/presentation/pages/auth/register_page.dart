@@ -19,7 +19,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  String _selectedRole = 'carpintero';
+  String _selectedRole = 'cliente';
   bool _obscurePassword = true;
 
   @override
@@ -152,12 +152,12 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       items: const [
                         DropdownMenuItem(
-                          value: 'carpintero',
-                          child: Text('Maestro Carpintero / Personal'),
+                          value: 'cliente',
+                          child: Text('Cliente (Marketplace, Carrito y Cotizaciones)'),
                         ),
                         DropdownMenuItem(
-                          value: 'cliente',
-                          child: Text('Cliente / Solicitar Muebles'),
+                          value: 'carpintero',
+                          child: Text('Maestro Carpintero / Administración'),
                         ),
                       ],
                       onChanged: (val) {
