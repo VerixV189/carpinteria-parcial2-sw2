@@ -1,6 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:archive/archive.dart';
 import 'package:csv/csv.dart';
-import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -170,49 +171,32 @@ class ReportExportService {
     return file.path;
   }
 
-  /// Genera un archivo Microsoft Excel (.xlsx) con los resultados de la consulta
-  /// SQLite y el análisis de la IA, y abre el menú de compartir.
+  /// Genera un archivo Microsoft Excel (.xlsx) estándar OpenXML usando `archive ^4.x`
+  /// (compatible al 100% con `llamadart` sin conflictos de versión).
   static Future<String> exportToExcel({
     required String userQuery,
     required String sqlExecuted,
     required String aiConclusion,
     required List<Map<String, dynamic>> rows,
   }) async {
-    final excel = Excel.createExcel();
-    final sheetName = 'Informe_Carpinteria';
-    excel.rename(excel.getDefaultSheet() ?? 'Sheet1', sheetName);
-    final sheet = excel[sheetName];
-
-    // Metadatos del reporte en las primeras filas
-    sheet.appendRow([TextCellValue('CARPINTERÍA EL ROBLE - REPORTE OFFLINE IA')]);
-    sheet.appendRow([TextCellValue('Consulta:'), TextCellValue(userQuery)]);
-    sheet.appendRow([TextCellValue('SQL Ejecutado:'), TextCellValue(sqlExecuted)]);
-    sheet.appendRow([TextCellValue('Conclusión IA:'), TextCellValue(aiConclusion)]);
-    sheet.appendRow([TextCellValue('')]);
+    final allRows = <List<dynamic>>[
+      ['CARPINTERIA EL ROBLE - REPORTE OFFLINE IA'],
+      ['Consulta:', userQuery],
+      ['SQL Ejecutado:', sqlExecuted],
+      ['Conclusion IA:', aiConclusion],
+      [],
+    ];
 
     if (rows.isNotEmpty) {
-      // Encabezados de columna
-      final headers =
-          rows.first.keys.map((k) => TextCellValue(k.toUpperCase())).toList();
-      sheet.appendRow(headers);
-
-      // Filas de datos
+      allRows.add(rows.first.keys.map((k) => k.toUpperCase()).toList());
       for (final row in rows) {
-        final cells = row.values.map<CellValue>((val) {
-          if (val is int) return IntCellValue(val);
-          if (val is double) return DoubleCellValue(val);
-          return TextCellValue((val ?? '').toString());
-        }).toList();
-        sheet.appendRow(cells);
+        allRows.add(row.values.map((v) => v ?? '').toList());
       }
     } else {
-      sheet.appendRow([TextCellValue('Sin registros para esta consulta')]);
+      allRows.add(['Sin registros para esta consulta']);
     }
 
-    final fileBytes = excel.save();
-    if (fileBytes == null) {
-      throw Exception('No se pudo generar el archivo Excel.');
-    }
+    final fileBytes = _buildXlsxBytes(allRows);
 
     final dir = await getApplicationDocumentsDirectory();
     final fileName =
@@ -263,5 +247,89 @@ class ReportExportService {
       text: 'Informe CSV - Carpintería El Roble',
     );
     return file.path;
+  }
+
+  // ── Generador OpenXML (.xlsx) compatible con archive ^4.x ─────────────────
+
+  static List<int> _buildXlsxBytes(List<List<dynamic>> rows) {
+    final archive = Archive();
+
+    void addXmlFile(String path, String xmlContent) {
+      final bytes = utf8.encode(xmlContent);
+      archive.addFile(ArchiveFile(path, bytes.length, bytes));
+    }
+
+    addXmlFile('[Content_Types].xml', '''<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>''');
+
+    addXmlFile('_rels/.rels', '''<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>''');
+
+    addXmlFile('xl/workbook.xml', '''<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Informe_Carpinteria" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>''');
+
+    addXmlFile('xl/_rels/workbook.xml.rels', '''<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>''');
+
+    final sb = StringBuffer();
+    sb.write('<?xml version="1.0" encoding="UTF-8"?>');
+    sb.write(
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>');
+
+    for (var r = 0; r < rows.length; r++) {
+      final rowIndex = r + 1;
+      final row = rows[r];
+      sb.write('<row r="$rowIndex">');
+      for (var c = 0; c < row.length; c++) {
+        final colLetter = _colIndexToLetter(c);
+        final cellRef = '$colLetter$rowIndex';
+        final val = row[c];
+        if (val is num) {
+          sb.write('<c r="$cellRef"><v>$val</v></c>');
+        } else {
+          final escaped = _escapeXml((val ?? '').toString());
+          sb.write(
+              '<c r="$cellRef" t="inlineStr"><is><t>$escaped</t></is></c>');
+        }
+      }
+      sb.write('</row>');
+    }
+
+    sb.write('</sheetData></worksheet>');
+    addXmlFile('xl/worksheets/sheet1.xml', sb.toString());
+
+    return ZipEncoder().encode(archive);
+  }
+
+  static String _colIndexToLetter(int index) {
+    var col = '';
+    var n = index;
+    while (n >= 0) {
+      col = String.fromCharCode((n % 26) + 65) + col;
+      n = (n ~/ 26) - 1;
+    }
+    return col;
+  }
+
+  static String _escapeXml(String input) {
+    return input
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;');
   }
 }
