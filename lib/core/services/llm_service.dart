@@ -1,6 +1,7 @@
 import 'package:llamadart/llamadart.dart';
 import 'package:carpinteria_movil_sw2/core/storage/sqlite_database.dart';
 import 'package:carpinteria_movil_sw2/core/utils/sql_security_validator.dart';
+import 'package:carpinteria_movil_sw2/domain/entities/entity.dart';
 
 class AiSqlReportResult {
   final String userQuery;
@@ -122,6 +123,84 @@ Redacta un resumen ejecutivo breve (máximo 3 oraciones) con conclusiones para e
       aiConclusion: aiConclusion,
     );
   }
+
+  /// Asistente restringido para Clientes:
+  /// - Valida que no pida informes (PDF/Excel/CSV) ni datos sensibles/administrativos.
+  /// - Solo tiene acceso a los pedidos propios del cliente autenticado y al catálogo público en venta.
+  Future<String> generateClientResponse({
+    required String rawQuestion,
+    required String clientName,
+    required List<OrderEntity> myOrders,
+    required List<ProductEntity> availableProducts,
+  }) async {
+    // 1. Validar que la pregunta no viole las políticas de seguridad del rol Cliente
+    final cleanQuestion = SqlSecurityValidator.validateClientQuestion(rawQuestion);
+
+    // 2. Construir contexto aislado (SOLO pedidos de este cliente + catálogo público)
+    final myOrdersSummary = myOrders.isEmpty
+        ? 'No tienes pedidos ni cotizaciones activas en este momento.'
+        : myOrders
+            .map(
+              (o) =>
+                  '• Código ${o.id}: ${o.productName} (${o.woodType}) | Estado: ${o.status} | Entrega: ${o.deliveryDate} | Total: Bs ${o.totalAmount.toStringAsFixed(0)} | Pagado: Bs ${o.advancePayment.toStringAsFixed(0)} | Saldo: Bs ${(o.totalAmount - o.advancePayment).toStringAsFixed(0)}',
+            )
+            .join('\n');
+
+    final catalogSummary = availableProducts
+        .map(
+          (p) =>
+              '• ${p.name} (${p.woodType}, ${p.dimensions}): Bs ${p.price.toStringAsFixed(0)} - Disp: ${p.stock} u.',
+        )
+        .join('\n');
+
+    // Si el modelo Qwen3 está cargado en memoria, genera respuesta conversacional
+    if (_session != null) {
+      final prompt = '''
+Eres el Asistente de Atención al Cliente de "Carpintería El Roble".
+Estás hablando con el cliente: $clientName.
+REGLA DE SEGURIDAD ESTRICTA: Nunca reveles datos de otros clientes, costos internos ni generes reportes administrativos.
+
+MIS PEDIDOS Y COTIZACIONES ($clientName):
+$myOrdersSummary
+
+MUEBLES DISPONIBLES A LA VENTA EN MARKETPLACE:
+$catalogSummary
+
+PREGUNTA DEL CLIENTE:
+<consulta_usuario>$cleanQuestion</consulta_usuario>
+Responde de forma amable, breve y útil en español.
+/no_think
+''';
+      try {
+        return await generate(prompt);
+      } catch (_) {
+        // Fallback inteligente si el modelo local falla
+      }
+    }
+
+    // Respuesta inmediata basada en los datos aislados del cliente
+    final q = cleanQuestion.toLowerCase();
+    if (q.contains('pedido') ||
+        q.contains('cotizaci') ||
+        q.contains('estado') ||
+        q.contains('saldo') ||
+        q.contains('entrega')) {
+      return 'Hola $clientName, este es el estado actual de tus pedidos y cotizaciones:\n\n$myOrdersSummary';
+    }
+
+    if (q.contains('mueble') ||
+        q.contains('precio') ||
+        q.contains('disponible') ||
+        q.contains('mesa') ||
+        q.contains('silla') ||
+        q.contains('ropero') ||
+        q.contains('puerta')) {
+      return 'Hola $clientName, estos son los muebles disponibles actualmente en nuestro Marketplace:\n\n$catalogSummary';
+    }
+
+    return 'Hola $clientName. Puedo ayudarte a revisar tus pedidos activos:\n\n$myOrdersSummary\n\nTambién puedes consultarme por nuestros muebles en venta (${availableProducts.length} modelos disponibles en Roble, Cedro, Mara y Melamina) o recomendaciones de cuidado para madera.';
+  }
+
 
   String _buildCompactStats(List<Map<String, dynamic>> rows) {
     if (rows.isEmpty) {

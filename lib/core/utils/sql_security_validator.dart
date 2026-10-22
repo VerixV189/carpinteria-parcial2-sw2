@@ -156,4 +156,25 @@ class SqlSecurityValidator {
 
     return 'SELECT id, cliente_nombre, producto_nombre, tipo_madera, monto_total, adelanto, saldo, estado, fecha_entrega FROM pedidos LIMIT 100';
   }
+
+  /// Validador de seguridad exclusivo para el Agente de Clientes:
+  /// Bloquea cualquier intento de generar informes administrativos, exportar
+  /// bases de datos, consultar costos internos de insumos o ver pedidos de otros clientes.
+  static String validateClientQuestion(String input) {
+    final cleaned = sanitizeUserPrompt(input);
+
+    final sensitivePatterns = RegExp(
+      r'(\b(pdf|excel|xlsx|csv|exportar|descargar\s+base|informe\s+general|reporte\s+de\s+ventas|ganancias|ingresos\s+totales|costo_unitario|costos\s+internos|stock_minimo|inventario\s+de\s+insumos|otros\s+clientes|todos\s+los\s+pedidos|usuarios\s+registrados|contraseñas|passwords|sqlite_master|select\s+\*\s+from)\b)',
+      caseSensitive: false,
+    );
+
+    if (sensitivePatterns.hasMatch(cleaned)) {
+      throw Exception(
+        'Acceso Restringido: Como cliente solo puedes consultar el estado de tus propios pedidos, cotizaciones, muebles disponibles en tienda o consejos de cuidado de madera. No está permitido generar informes ni consultar datos internos del sistema.',
+      );
+    }
+
+    return cleaned;
+  }
 }
+
