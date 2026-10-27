@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+Thumbs.db
 .atom/
 .build/
 .buildlog/
@@ -27,32 +28,41 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
+/linux/flutter/ephemeral/
+/macos/Flutter/ephemeral/
+/windows/flutter/ephemeral/
 
-# Symbolication related
+# Symbolication & Obfuscation related
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio / APK build artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/build/
+android/.gradle/
+android/local.properties
+*.apk
+*.aab
 
-# Variables de entorno
-.env
+# Variables de entorno (se mantiene .env.example como plantilla)
+.env.*
+!.env.example
 
-# Modelos de IA (demasiado pesados para el repositorio)
+# Modelos de IA Offline (demasiado pesados para el repositorio: ~1.1GB)
 assets/models/whisper/
 assets/models/llm/
 assets/models/vosk/
-android/build/
-
 assets/models/whisper_onnx/
+*.gguf
+*.onnx
+*.bin
 
 GUIA_ARQUITECTURA_Y_REPORTES_IA.md
