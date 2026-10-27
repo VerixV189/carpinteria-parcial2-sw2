@@ -4,6 +4,8 @@ import 'package:carpinteria_movil_sw2/domain/entities/entity.dart';
 import 'package:carpinteria_movil_sw2/presentation/pages/client/client_home_page.dart';
 import 'package:carpinteria_movil_sw2/presentation/pages/voice_report_page.dart';
 import 'package:carpinteria_movil_sw2/presentation/providers/app_provider.dart';
+import 'package:carpinteria_movil_sw2/presentation/widgets/notification_bell_button.dart';
+import 'package:carpinteria_movil_sw2/presentation/widgets/payment_and_invoice_modals.dart';
 import 'package:carpinteria_movil_sw2/routes/app_router.dart';
 import 'package:carpinteria_movil_sw2/theme/app_theme.dart';
 
@@ -18,9 +20,12 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
 
   void _showCreateOrderModal(BuildContext context, {ProductEntity? preselected}) {
-    final clientCtrl = TextEditingController();
+    final provider = AppScope.of(context);
+    final clientCtrl = TextEditingController(
+      text: provider.clients.isNotEmpty ? provider.clients.first.name : '',
+    );
     final productCtrl = TextEditingController(text: preselected?.name ?? '');
-    final woodCtrl = TextEditingController(text: preselected?.woodType ?? 'Roble Macizo');
+    final woodCtrl = TextEditingController(text: preselected?.woodType ?? 'Roble');
     final specsCtrl = TextEditingController(
       text: preselected != null ? 'Dimensiones: ${preselected.dimensions}' : '',
     );
@@ -30,7 +35,11 @@ class _HomePageState extends State<HomePage> {
     final advanceCtrl = TextEditingController(
       text: preselected != null ? (preselected.price * 0.5).toStringAsFixed(0) : '',
     );
-    final dateCtrl = TextEditingController(text: '30/10/2026');
+    final dateCtrl = TextEditingController(text: '2026-11-05');
+    final addressCtrl = TextEditingController(
+      text: 'Av. Cristo Redentor 4to Anillo, Santa Cruz',
+    );
+    String deliveryType = 'DELIVERY';
     final formKey = GlobalKey<FormState>();
 
     showModalBottomSheet(
@@ -41,150 +50,189 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          ),
-          child: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Nuevo Pedido / Cotización',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryDarkWood,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: clientCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre del Cliente',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: productCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Mueble / Trabajo solicitado',
-                      prefixIcon: Icon(Icons.chair_outlined),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: woodCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Madera / Material',
-                            prefixIcon: Icon(Icons.forest_outlined),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextFormField(
-                          controller: dateCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Fecha Entrega',
-                            prefixIcon: Icon(Icons.event_outlined),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: totalCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Total (Bs)',
-                            prefixIcon: Icon(Icons.attach_money),
-                          ),
-                          validator: (v) =>
-                              (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextFormField(
-                          controller: advanceCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Adelanto (Bs)',
-                            prefixIcon: Icon(Icons.payments_outlined),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: specsCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Medidas, tono de barniz y detalles',
-                      prefixIcon: Icon(Icons.description_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      if (!formKey.currentState!.validate()) return;
-                      final provider = AppScope.of(this.context);
-                      final messenger = ScaffoldMessenger.of(this.context);
-                      await provider.createOrder(
-                        clientName: clientCtrl.text.trim(),
-                        productName: productCtrl.text.trim(),
-                        woodType: woodCtrl.text.trim(),
-                        specifications: specsCtrl.text.trim(),
-                        totalAmount: double.tryParse(totalCtrl.text) ?? 0.0,
-                        advancePayment: double.tryParse(advanceCtrl.text) ?? 0.0,
-                        deliveryDate: dateCtrl.text.trim(),
-                      );
-                      if (ctx.mounted) Navigator.pop(ctx);
-                      if (mounted) {
-                        setState(() => _currentIndex = 1);
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Pedido registrado correctamente'),
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.save_outlined),
-                    label: const Text('Registrar Pedido'),
-                  ),
-                ],
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 18,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
               ),
-            ),
-          ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Nuevo Pedido de Producción (CU4)',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryDarkWood,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: clientCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre del Cliente',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: productCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Mueble / Trabajo solicitado',
+                          prefixIcon: Icon(Icons.chair_outlined),
+                        ),
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: woodCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Madera',
+                                prefixIcon: Icon(Icons.forest_outlined),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextFormField(
+                              controller: dateCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Fecha (YYYY-MM-DD)',
+                                prefixIcon: Icon(Icons.event_outlined),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: totalCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Total (Bs)',
+                                prefixIcon: Icon(Icons.attach_money),
+                              ),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Requerido'
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextFormField(
+                              controller: advanceCtrl,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Adelanto (Bs)',
+                                prefixIcon: Icon(Icons.payments_outlined),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Envío a domicilio'),
+                            selected: deliveryType == 'DELIVERY',
+                            onSelected: (_) =>
+                                setModalState(() => deliveryType = 'DELIVERY'),
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('Recojo en taller'),
+                            selected: deliveryType == 'PICKUP',
+                            onSelected: (_) =>
+                                setModalState(() => deliveryType = 'PICKUP'),
+                          ),
+                        ],
+                      ),
+                      if (deliveryType == 'DELIVERY') ...[
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: addressCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Dirección de entrega',
+                            prefixIcon: Icon(Icons.location_on_outlined),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: specsCtrl,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Medidas, tono de barniz y detalles',
+                          prefixIcon: Icon(Icons.description_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          if (!formKey.currentState!.validate()) return;
+                          final messenger = ScaffoldMessenger.of(this.context);
+                          await provider.createOrder(
+                            clientName: clientCtrl.text.trim(),
+                            productName: productCtrl.text.trim(),
+                            woodType: woodCtrl.text.trim(),
+                            specifications: specsCtrl.text.trim(),
+                            totalAmount: double.tryParse(totalCtrl.text) ?? 0.0,
+                            advancePayment:
+                                double.tryParse(advanceCtrl.text) ?? 0.0,
+                            deliveryDate: dateCtrl.text.trim(),
+                            deliveryType: deliveryType,
+                            deliveryAddress: deliveryType == 'DELIVERY'
+                                ? addressCtrl.text.trim()
+                                : 'Recojo en taller',
+                          );
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (mounted) {
+                            setState(() => _currentIndex = 0);
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Pedido registrado en GraphQL / SQLite',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.save_outlined),
+                        label: const Text('Registrar Pedido'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -197,13 +245,14 @@ class _HomePageState extends State<HomePage> {
       return const ClientHomePage();
     }
     final user = provider.currentUser;
+    final roleTag = provider.isAdminRole ? 'ADMIN' : 'TALLER / CARPINTERO';
 
     final titles = [
-      'Catálogo Carpintería',
-      'Pedidos y Cotizaciones',
-      'Inventario de Maderas',
-      'Asistente IA por Voz',
-      'Mi Perfil y Servidor',
+      'Taller y Pedidos (CU2 • CU4)',
+      'Cotizaciones y Entregas (CU3 • CU4)',
+      'Gestión: Clientes, Carpinteros y Facturas',
+      'Agente IA y Reportes (CU7)',
+      'Mi Perfil y Gateway',
     ];
 
     return Scaffold(
@@ -213,12 +262,12 @@ class _HomePageState extends State<HomePage> {
           children: [
             Text(
               titles[_currentIndex],
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold),
             ),
             Text(
               provider.isUsingMock
-                  ? 'Modo Híbrido (Datos locales • API lista)'
-                  : 'Conectado a Backend (${AppConfig.baseUrl})',
+                  ? '$roleTag • Modo Híbrido Local'
+                  : '$roleTag • Online (${AppConfig.baseUrl})',
               style: TextStyle(
                 fontSize: 11,
                 color: provider.isUsingMock
@@ -229,6 +278,7 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
+          const NotificationBellButton(),
           IconButton(
             tooltip: 'Sincronizar con Backend',
             onPressed: provider.loadCarpentryData,
@@ -239,19 +289,19 @@ class _HomePageState extends State<HomePage> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          _CatalogTab(
-            onOrderProduct: (product) =>
-                _showCreateOrderModal(context, preselected: product),
-          ),
-          _OrdersTab(
+          _WorkshopAndOrdersTab(
             onAddOrder: () => _showCreateOrderModal(context),
           ),
-          const _InventoryTab(),
+          const _QuotesAndDeliveriesTab(),
+          _ManagementAndCatalogTab(
+            onOrderProduct: (p) =>
+                _showCreateOrderModal(context, preselected: p),
+          ),
           const VoiceReportPage(),
           _ProfileTab(user: user),
         ],
       ),
-      floatingActionButton: _currentIndex == 1
+      floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(
               backgroundColor: AppTheme.primaryWood,
               foregroundColor: Colors.white,
@@ -265,19 +315,19 @@ class _HomePageState extends State<HomePage> {
         onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.chair_outlined),
-            selectedIcon: Icon(Icons.chair),
-            label: 'Muebles',
+            icon: Icon(Icons.precision_manufacturing_outlined),
+            selectedIcon: Icon(Icons.precision_manufacturing_rounded),
+            label: 'Taller/Pedidos',
           ),
           NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Pedidos',
+            icon: Icon(Icons.local_shipping_outlined),
+            selectedIcon: Icon(Icons.local_shipping_rounded),
+            label: 'Cotiz./Envíos',
           ),
           NavigationDestination(
-            icon: Icon(Icons.forest_outlined),
-            selectedIcon: Icon(Icons.forest),
-            label: 'Maderas',
+            icon: Icon(Icons.admin_panel_settings_outlined),
+            selectedIcon: Icon(Icons.admin_panel_settings_rounded),
+            label: 'Gestión/PDF',
           ),
           NavigationDestination(
             icon: Icon(Icons.mic_none_rounded),
@@ -295,125 +345,717 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// ── TAB 1: CATÁLOGO DE MUEBLES ──────────────────────────────────────────────
+// ── TAB 1: TALLER CARPINTERO (Frontend3 Svelte) + PEDIDOS (Frontend2 Angular) ─
 
-class _CatalogTab extends StatelessWidget {
-  final ValueChanged<ProductEntity> onOrderProduct;
+class _WorkshopAndOrdersTab extends StatelessWidget {
+  final VoidCallback onAddOrder;
 
-  const _CatalogTab({required this.onOrderProduct});
+  const _WorkshopAndOrdersTab({required this.onAddOrder});
 
-  IconData _mapIcon(String name) {
-    switch (name) {
-      case 'table_restaurant':
-        return Icons.table_restaurant_rounded;
-      case 'door_sliding':
-        return Icons.door_sliding_rounded;
-      case 'door_front_door':
-        return Icons.door_front_door_rounded;
-      case 'countertops':
-        return Icons.countertops_rounded;
-      case 'desk':
-        return Icons.desk_rounded;
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'En fabricación':
+        return Colors.blue.shade700;
+      case 'Aprobado':
+        return Colors.indigo.shade700;
+      case 'Listo':
+        return Colors.green.shade700;
+      case 'Entregado':
+        return Colors.teal.shade700;
+      case 'Cancelado':
+        return Colors.red.shade700;
       default:
-        return Icons.chair_rounded;
+        return Colors.orange.shade800;
     }
+  }
+
+  void _showAssignCarpenterDialog(BuildContext context, OrderEntity order) {
+    final provider = AppScope.of(context);
+    final carpenters = provider.carpenters;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Asignar Carpintero a Pedido #${order.id}'),
+        content: carpenters.isEmpty
+            ? const Text('No hay carpinteros registrados.')
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: carpenters
+                    .map(
+                      (c) => ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: AppTheme.primaryWood,
+                          child: Icon(Icons.handyman, color: Colors.white, size: 18),
+                        ),
+                        title: Text(c.name),
+                        subtitle: Text('${c.specialty} • Bs ${c.hourlyRate.toStringAsFixed(0)}/h'),
+                        onTap: () async {
+                          await provider.assignCarpenter(order.id, c.id);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        },
+                      ),
+                    )
+                    .toList(),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = AppScope.of(context);
-    final products = provider.filteredProducts;
-    final lowStockCount =
-        provider.materials.where((m) => m.isLowStock).length;
+    final orders = provider.orders;
+    final inProdCount =
+        orders.where((o) => o.rawStatus == 'IN_PRODUCTION').length;
+    final readyCount = orders.where((o) => o.rawStatus == 'READY').length;
+    final draftQuotesCount = provider.quotations
+        .where((q) => q.status.toUpperCase() == 'DRAFT')
+        .length;
 
-    return Column(
+    // Buscar el siguiente paso de producción activo (equivalente a `siguienteAccion` en Svelte Taller)
+    OrderEntity? nextStepOrder;
+    ProductionStepEntity? nextStep;
+    for (final o in orders) {
+      for (final s in o.steps) {
+        if (!s.isCompleted) {
+          nextStepOrder = o;
+          nextStep = s;
+          break;
+        }
+      }
+      if (nextStep != null) break;
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 84),
       children: [
-        // Resumen rápido de la carpintería
+        // ── KPIs Rápidos del Taller ──────────────────────────────────────────
         Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          decoration: const BoxDecoration(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
             color: AppTheme.primaryDarkWood,
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+            borderRadius: BorderRadius.circular(18),
           ),
-          child: Column(
+          child: Row(
             children: [
-              Row(
+              _StatBadge(
+                label: 'Pedidos',
+                value: '${orders.length}',
+                icon: Icons.assignment_outlined,
+              ),
+              const SizedBox(width: 8),
+              _StatBadge(
+                label: 'En Taller',
+                value: '$inProdCount',
+                icon: Icons.handyman_rounded,
+              ),
+              const SizedBox(width: 8),
+              _StatBadge(
+                label: 'Listos',
+                value: '$readyCount',
+                icon: Icons.check_circle_outline,
+              ),
+              const SizedBox(width: 8),
+              _StatBadge(
+                label: 'Por Cotizar',
+                value: '$draftQuotesCount',
+                icon: Icons.request_quote_outlined,
+                highlight: draftQuotesCount > 0,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // ── Hero Card "Tu Siguiente Paso" (Frontend3-Svelte-Taller) ──────────
+        if (nextStep != null && nextStepOrder != null)
+          Card(
+            color: Colors.amber.shade50,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.amber.shade400),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
                 children: [
-                  _StatBadge(
-                    label: 'Muebles',
-                    value: '${provider.allProducts.length}',
-                    icon: Icons.chair_alt_rounded,
+                  const CircleAvatar(
+                    backgroundColor: AppTheme.primaryWood,
+                    child: Icon(Icons.play_arrow_rounded, color: Colors.white),
                   ),
-                  const SizedBox(width: 10),
-                  _StatBadge(
-                    label: 'Pedidos Activos',
-                    value: '${provider.orders.length}',
-                    icon: Icons.handyman_rounded,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tu siguiente paso en taller (Pedido #${nextStepOrder.id}):',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.brown,
+                          ),
+                        ),
+                        Text(
+                          '${nextStep.sequence}. ${nextStep.name}',
+                          style: const TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryDarkWood,
+                          ),
+                        ),
+                        Text(
+                          '${nextStepOrder.productName} • Cliente: ${nextStepOrder.clientName}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 10),
-                  _StatBadge(
-                    label: 'Stock Alerta',
-                    value: '$lowStockCount insumo(s)',
-                    icon: Icons.warning_amber_rounded,
-                    highlight: lowStockCount > 0,
+                  FilledButton.tonal(
+                    onPressed: () {
+                      final nextStatus =
+                          nextStep!.isInProgress ? 'COMPLETED' : 'IN_PROGRESS';
+                      provider.updateStepStatus(nextStep.id, nextStatus);
+                    },
+                    child: Text(
+                      nextStep.isInProgress ? 'Terminar' : 'Empezar',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                onChanged: provider.setSearchQuery,
-                decoration: InputDecoration(
-                  hintText: 'Buscar mueble o tipo de madera (Roble, Cedro...)',
-                  prefixIcon: const Icon(Icons.search),
-                  isDense: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+            ),
+          ),
+
+        const SizedBox(height: 10),
+        const Text(
+          'Órdenes de Trabajo, Pasos de Producción y Asignación',
+          style: TextStyle(
+            fontSize: 15.5,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryDarkWood,
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        if (orders.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const Text('No hay pedidos registrados aún'),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    onPressed: onAddOrder,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Crear primer pedido'),
                   ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...orders.map((order) {
+            final color = _statusColor(order.status);
+            final pendingBalance = order.totalAmount - order.advancePayment;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Pedido #${order.id} • ${order.deliveryType == "PICKUP" ? "Recojo en taller" : "Envío a domicilio"}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black54,
+                            fontSize: 12,
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          onSelected: (newStatus) {
+                            provider.updateOrderStatus(order.id, newStatus);
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'PENDING',
+                              child: Text('Estado: Pendiente (PENDING)'),
+                            ),
+                            PopupMenuItem(
+                              value: 'APPROVED',
+                              child: Text('Estado: Aprobado (APPROVED)'),
+                            ),
+                            PopupMenuItem(
+                              value: 'IN_PRODUCTION',
+                              child: Text('Estado: En fabricación (IN_PRODUCTION)'),
+                            ),
+                            PopupMenuItem(
+                              value: 'READY',
+                              child: Text('Estado: Listo para entrega (READY)'),
+                            ),
+                            PopupMenuItem(
+                              value: 'DELIVERED',
+                              child: Text('Estado: Entregado (DELIVERED)'),
+                            ),
+                          ],
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: color.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  order.status,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(Icons.edit_outlined, size: 13, color: color),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      order.productName,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryDarkWood,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Cliente: ${order.clientName} • Madera: ${order.woodType} • Entrega: ${order.deliveryDate}',
+                      style: const TextStyle(fontSize: 12.5, color: Colors.black87),
+                    ),
+                    if (order.deliveryAddress.isNotEmpty)
+                      Text(
+                        'Dirección: ${order.deliveryAddress}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                      ),
+
+                    // Carpinteros asignados
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            order.carpenters.isEmpty
+                                ? 'Carpintero: Sin asignar'
+                                : 'Carpintero(s): ${order.carpenters.map((c) => c.name).join(", ")}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryWood,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () =>
+                              _showAssignCarpenterDialog(context, order),
+                          icon: const Icon(Icons.person_add_alt_1, size: 15),
+                          label: const Text(
+                            'Asignar',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Pasos de producción (CU2 / CU4)
+                    if (order.steps.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: order.stepsProgress,
+                          minHeight: 6,
+                          backgroundColor: Colors.brown.shade100,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ...order.steps.map((step) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            children: [
+                              Icon(
+                                step.isCompleted
+                                    ? Icons.check_circle
+                                    : (step.isInProgress
+                                        ? Icons.timelapse
+                                        : Icons.radio_button_unchecked),
+                                size: 17,
+                                color: step.isCompleted
+                                    ? Colors.green.shade700
+                                    : (step.isInProgress
+                                        ? Colors.blue.shade700
+                                        : Colors.grey),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${step.sequence}. ${step.name}',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    decoration: step.isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                              if (!step.isCompleted)
+                                InkWell(
+                                  onTap: () {
+                                    final next = step.isInProgress
+                                        ? 'COMPLETED'
+                                        : 'IN_PROGRESS';
+                                    provider.updateStepStatus(step.id, next);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryWood
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      step.isInProgress ? 'Terminar' : 'Empezar',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryWood,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+
+                    const Divider(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _AmountColumn(
+                          label: 'Total',
+                          amount: order.totalAmount,
+                          color: AppTheme.primaryDarkWood,
+                        ),
+                        _AmountColumn(
+                          label: 'Pagado/Adelanto',
+                          amount: order.advancePayment,
+                          color: Colors.green.shade700,
+                        ),
+                        _AmountColumn(
+                          label: 'Saldo',
+                          amount: pendingBalance,
+                          color: pendingBalance > 0
+                              ? Colors.red.shade700
+                              : Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+// ── TAB 2: COTIZACIONES DEL TALLER (CU3) + ENTREGAS Y LOGÍSTICA (CU4) ────────
+
+class _QuotesAndDeliveriesTab extends StatefulWidget {
+  const _QuotesAndDeliveriesTab();
+
+  @override
+  State<_QuotesAndDeliveriesTab> createState() =>
+      _QuotesAndDeliveriesTabState();
+}
+
+class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
+  int _subTab = 0; // 0 = Cotizaciones, 1 = Entregas
+  DeliveryCapacityEntity? _capacityInfo;
+
+  void _showSendFormalQuoteDialog(BuildContext context, QuotationEntity q) {
+    final priceCtrl = TextEditingController(
+      text: (q.counterAmount ?? q.payableAmount).toStringAsFixed(0),
+    );
+    final notesCtrl = TextEditingController(
+      text: q.notes ?? 'Incluye barnizado en poliuretano y garantía de 1 año.',
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enviar Cotización Formal al Cliente (CU3)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              q.description,
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+            if (q.counterAmount != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Contraoferta del cliente: Bs ${q.counterAmount!.toStringAsFixed(0)} ("${q.clientMessage ?? ""}")',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade900,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: priceCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Precio Formal Final (Bs)',
+                prefixIcon: Icon(Icons.payments_outlined),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: notesCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Condiciones / Tiempo de entrega',
+                prefixIcon: Icon(Icons.notes),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final provider = AppScope.of(context);
+              final amount =
+                  double.tryParse(priceCtrl.text) ?? q.payableAmount;
+              await provider.sendQuotationFormalPrice(
+                id: q.id,
+                finalAmount: amount,
+                notes: notesCtrl.text.trim(),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Enviar Precio al Cliente'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showScheduleDeliveryDialog(BuildContext context) {
+    final provider = AppScope.of(context);
+    final orders = provider.orders;
+    String selectedOrderId = orders.isNotEmpty ? orders.first.id : '1';
+    final dateCtrl = TextEditingController(text: '2026-10-30');
+    final addressCtrl = TextEditingController(
+      text: orders.isNotEmpty && orders.first.deliveryAddress.isNotEmpty
+          ? orders.first.deliveryAddress
+          : 'Av. Cristo Redentor 4to Anillo',
+    );
+    final notesCtrl = TextEditingController(text: 'Llamar al cliente antes de salir');
+    String timeSlot = 'MORNING';
+    String deliveryType = 'DELIVERY';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Programar Entrega (CU4)'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (orders.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedOrderId,
+                    decoration: const InputDecoration(labelText: 'Pedido'),
+                    items: orders
+                        .map(
+                          (o) => DropdownMenuItem(
+                            value: o.id,
+                            child: Text(
+                              '#${o.id} - ${o.clientName}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setDialogState(() => selectedOrderId = v);
+                    },
+                  ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: dateCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Fecha Programada (YYYY-MM-DD)',
+                    prefixIcon: Icon(Icons.calendar_today),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: timeSlot,
+                  decoration: const InputDecoration(labelText: 'Franja Horaria'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'MORNING',
+                      child: Text('Mañana (08:00 - 12:00)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'AFTERNOON',
+                      child: Text('Tarde (14:00 - 18:00)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'EVENING',
+                      child: Text('Noche (18:00 - 20:00)'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setDialogState(() => timeSlot = v);
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: addressCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Dirección o Punto de Entrega',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: notesCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Notas logísticas',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await provider.scheduleDelivery(
+                  orderId: selectedOrderId,
+                  scheduledDate: dateCtrl.text.trim(),
+                  timeSlot: timeSlot,
+                  address: addressCtrl.text.trim(),
+                  notes: notesCtrl.text.trim(),
+                  deliveryType: deliveryType,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Guardar Entrega'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = AppScope.of(context);
+    final quotations = provider.quotations;
+    final deliveries = provider.deliveries;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: ChoiceChip(
+                  label: Text('Cotizaciones (${quotations.length})'),
+                  selected: _subTab == 0,
+                  selectedColor: AppTheme.primaryWood,
+                  labelStyle: TextStyle(
+                    color: _subTab == 0 ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  onSelected: (_) => setState(() => _subTab = 0),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ChoiceChip(
+                  label: Text('Entregas y Logística (${deliveries.length})'),
+                  selected: _subTab == 1,
+                  selectedColor: AppTheme.primaryWood,
+                  labelStyle: TextStyle(
+                    color: _subTab == 1 ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  onSelected: (_) => setState(() => _subTab = 1),
                 ),
               ),
             ],
           ),
         ),
-
-        // Filtro por categorías
-        SizedBox(
-          height: 50,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            scrollDirection: Axis.horizontal,
-            itemCount: provider.categories.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
-            itemBuilder: (context, i) {
-              final cat = provider.categories[i];
-              final selected = cat == provider.selectedCategory;
-              return ChoiceChip(
-                label: Text(cat),
-                selected: selected,
-                selectedColor: AppTheme.primaryWood,
-                labelStyle: TextStyle(
-                  color: selected ? Colors.white : Colors.brown.shade900,
-                  fontWeight: FontWeight.w600,
-                ),
-                onSelected: (_) => provider.setCategory(cat),
-              );
-            },
-          ),
-        ),
-
-        // Lista de productos
         Expanded(
-          child: products.isEmpty
-              ? const Center(
-                  child: Text('No se encontraron muebles en esta categoría.'),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                  itemCount: products.length,
+          child: _subTab == 0
+              ? ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: quotations.length,
                   itemBuilder: (context, index) {
-                    final item = products[index];
+                    final q = quotations[index];
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       child: Padding(
@@ -422,119 +1064,87 @@ class _CatalogTab extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Container(
-                                  width: 56,
-                                  height: 56,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryWood
-                                        .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Icon(
-                                    _mapIcon(item.iconName),
-                                    color: AppTheme.primaryWood,
-                                    size: 30,
+                                Text(
+                                  'Cliente: ${q.clientId}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black54,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.amber.shade100,
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              item.category,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.brown.shade900,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Entrega: ~${item.estimatedDays} días',
-                                            style: const TextStyle(
-                                              fontSize: 11.5,
-                                              color: Colors.black54,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        item.name,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppTheme.primaryDarkWood,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Madera: ${item.woodType} • ${item.dimensions}',
-                                        style: const TextStyle(
-                                          fontSize: 12.5,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                    ],
+                                Chip(
+                                  label: Text(
+                                    q.statusLabel,
+                                    style: const TextStyle(fontSize: 11),
                                   ),
+                                  visualDensity: VisualDensity.compact,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
                             Text(
-                              item.description,
+                              q.description,
                               style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.black54,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppTheme.primaryDarkWood,
                               ),
                             ),
-                            const Divider(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Precio estimado',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Bs ${item.price.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.primaryWood,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                FilledButton.tonalIcon(
-                                  onPressed: () => onOrderProduct(item),
-                                  icon: const Icon(
-                                    Icons.add_shopping_cart_rounded,
-                                    size: 18,
+                            const SizedBox(height: 4),
+                            Text(
+                              'Madera: ${q.woodType} • Estimado IA: Bs ${q.totalAmount.toStringAsFixed(0)}',
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                            if (q.counterAmount != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'Contraoferta Cliente: Bs ${q.counterAmount!.toStringAsFixed(0)} — "${q.clientMessage ?? ""}"',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange.shade900,
                                   ),
-                                  label: const Text('Crear Pedido'),
+                                ),
+                              ),
+                            const Divider(height: 18),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                FilledButton.tonalIcon(
+                                  onPressed: () =>
+                                      _showSendFormalQuoteDialog(context, q),
+                                  icon: const Icon(Icons.price_change, size: 16),
+                                  label: const Text(
+                                    'Cotizar /Responder',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () => provider.approveQuotation(
+                                    id: q.id,
+                                    finalAmount: q.payableAmount,
+                                  ),
+                                  icon: const Icon(Icons.check, size: 16),
+                                  label: const Text(
+                                    'Aprobar',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => provider.rejectQuotation(
+                                    id: q.id,
+                                    reason: 'Sin disponibilidad de madera',
+                                  ),
+                                  child: Text(
+                                    'Rechazar',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -543,10 +1153,707 @@ class _CatalogTab extends StatelessWidget {
                       ),
                     );
                   },
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final cap = await provider
+                                  .checkDeliveryCapacity('2026-10-30');
+                              setState(() => _capacityInfo = cap);
+                            },
+                            icon: const Icon(Icons.event_available, size: 18),
+                            label: const Text('Verificar Cupo Diario'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () => _showScheduleDeliveryDialog(context),
+                            icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+                            label: const Text('Programar Entrega'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_capacityInfo != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.green.shade300),
+                        ),
+                        child: Text(
+                          'Capacidad ${_capacityInfo!.date}: ${_capacityInfo!.scheduledCount}/${_capacityInfo!.maxPerDay} programadas (${_capacityInfo!.remainingSlots} cupos libres)',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    ...deliveries.map((del) {
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Entrega #${del.id} (Pedido #${del.orderId})',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  Chip(
+                                    label: Text(
+                                      del.statusLabel,
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                'Fecha: ${del.scheduledDate} • ${del.timeSlotLabel}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.primaryDarkWood,
+                                ),
+                              ),
+                              Text(
+                                '${del.isPickup ? "Recojo en taller" : "Domicilio"}: ${del.address}',
+                                style: const TextStyle(fontSize: 12.5),
+                              ),
+                              if (del.latitude != null && del.longitude != null)
+                                Text(
+                                  'GPS: ${del.latitude}, ${del.longitude}',
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: Colors.blueGrey,
+                                  ),
+                                ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                children: [
+                                  ActionChip(
+                                    label: const Text(
+                                      'En Camino (IN_TRANSIT)',
+                                      style: TextStyle(fontSize: 11.5),
+                                    ),
+                                    onPressed: () => provider.updateDeliveryStatus(
+                                      del.id,
+                                      'IN_TRANSIT',
+                                    ),
+                                  ),
+                                  ActionChip(
+                                    label: const Text(
+                                      'Entregada (DELIVERED)',
+                                      style: TextStyle(fontSize: 11.5),
+                                    ),
+                                    onPressed: () => provider.updateDeliveryStatus(
+                                      del.id,
+                                      'DELIVERED',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
         ),
       ],
     );
+  }
+}
+
+// ── TAB 3: GESTIÓN DE CLIENTES (CU1), CARPINTEROS (CU2), FACTURAS (CU5) E INVENTARIO ─
+
+class _ManagementAndCatalogTab extends StatefulWidget {
+  final ValueChanged<ProductEntity> onOrderProduct;
+
+  const _ManagementAndCatalogTab({required this.onOrderProduct});
+
+  @override
+  State<_ManagementAndCatalogTab> createState() =>
+      _ManagementAndCatalogTabState();
+}
+
+class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
+  int _section = 0; // 0=Clientes+IA, 1=Carpinteros, 2=Facturas PDF, 3=Maderas
+
+  void _showClientDialog(BuildContext context, {ClientProfileEntity? existing}) {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final emailCtrl = TextEditingController(text: existing?.email ?? '');
+    final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
+    final addressCtrl = TextEditingController(text: existing?.address ?? '');
+    String segment = existing?.segment ?? 'REGULAR';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(existing == null ? 'Nuevo Cliente (CU1)' : 'Editar Cliente'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre completo'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: emailCtrl,
+                decoration: const InputDecoration(labelText: 'Correo electrónico'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: phoneCtrl,
+                decoration: const InputDecoration(labelText: 'Teléfono'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: addressCtrl,
+                decoration: const InputDecoration(labelText: 'Dirección'),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                initialValue: segment,
+                decoration: const InputDecoration(labelText: 'Segmento'),
+                items: const [
+                  DropdownMenuItem(value: 'REGULAR', child: Text('REGULAR')),
+                  DropdownMenuItem(value: 'VIP', child: Text('VIP')),
+                  DropdownMenuItem(value: 'WHOLESALE', child: Text('WHOLESALE')),
+                ],
+                onChanged: (v) {
+                  if (v != null) segment = v;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final provider = AppScope.of(context);
+              if (existing == null) {
+                await provider.createClient(
+                  name: nameCtrl.text.trim(),
+                  email: emailCtrl.text.trim(),
+                  phone: phoneCtrl.text.trim(),
+                  address: addressCtrl.text.trim(),
+                  segment: segment,
+                );
+              } else {
+                await provider.updateClient(
+                  id: existing.id,
+                  name: nameCtrl.text.trim(),
+                  email: emailCtrl.text.trim(),
+                  phone: phoneCtrl.text.trim(),
+                  address: addressCtrl.text.trim(),
+                  segment: segment,
+                );
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCarpenterDialog(BuildContext context, {CarpenterEntity? existing}) {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final emailCtrl = TextEditingController(text: existing?.email ?? '');
+    final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
+    final specCtrl =
+        TextEditingController(text: existing?.specialty ?? 'Ebanistería fina');
+    final expCtrl = TextEditingController(
+      text: (existing?.yearsExperience ?? 5).toString(),
+    );
+    final rateCtrl = TextEditingController(
+      text: (existing?.hourlyRate ?? 50.0).toStringAsFixed(0),
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          existing == null ? 'Nuevo Carpintero (CU2)' : 'Editar Carpintero',
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: emailCtrl,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: phoneCtrl,
+                decoration: const InputDecoration(labelText: 'Teléfono'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: specCtrl,
+                decoration: const InputDecoration(labelText: 'Especialidad'),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: expCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Años Exp.'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: rateCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Tarifa Bs/h'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final provider = AppScope.of(context);
+              if (existing == null) {
+                await provider.createCarpenter(
+                  name: nameCtrl.text.trim(),
+                  email: emailCtrl.text.trim(),
+                  phone: phoneCtrl.text.trim(),
+                  specialty: specCtrl.text.trim(),
+                  yearsExperience: int.tryParse(expCtrl.text) ?? 3,
+                  hourlyRate: double.tryParse(rateCtrl.text) ?? 45.0,
+                );
+              } else {
+                await provider.updateCarpenter(
+                  id: existing.id,
+                  name: nameCtrl.text.trim(),
+                  email: emailCtrl.text.trim(),
+                  phone: phoneCtrl.text.trim(),
+                  specialty: specCtrl.text.trim(),
+                  yearsExperience: int.tryParse(expCtrl.text) ?? 3,
+                  hourlyRate: double.tryParse(rateCtrl.text) ?? 45.0,
+                );
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showManualInvoiceDialog(BuildContext context) {
+    final nameCtrl = TextEditingController(text: 'Cliente Demo');
+    final nitCtrl = TextEditingController(text: '4829102015');
+    final emailCtrl = TextEditingController(text: 'cliente@carpinteria.com');
+    final descCtrl = TextEditingController(text: 'Mesa de Comedor Imperial en Roble');
+    final priceCtrl = TextEditingController(text: '2200');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emitir Factura Oficial (CU5)'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Razón Social / Cliente'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: nitCtrl,
+                decoration: const InputDecoration(labelText: 'NIT / CI'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: emailCtrl,
+                decoration: const InputDecoration(labelText: 'Correo Cliente'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(labelText: 'Concepto / Mueble'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: priceCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Monto Total (Bs)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final provider = AppScope.of(context);
+              await provider.createManualInvoice(
+                clientName: nameCtrl.text.trim(),
+                clientNit: nitCtrl.text.trim(),
+                clientEmail: emailCtrl.text.trim(),
+                description: descCtrl.text.trim(),
+                quantity: 1,
+                unitPrice: double.tryParse(priceCtrl.text) ?? 1500.0,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Emitir Factura'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = AppScope.of(context);
+
+    return Column(
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: const Text('Clientes + IA (CU1)'),
+                selected: _section == 0,
+                onSelected: (_) => setState(() => _section = 0),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Carpinteros (CU2)'),
+                selected: _section == 1,
+                onSelected: (_) => setState(() => _section = 1),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Facturas PDF (CU5)'),
+                selected: _section == 2,
+                onSelected: (_) => setState(() => _section = 2),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Maderas y Catálogo'),
+                selected: _section == 3,
+                onSelected: (_) => setState(() => _section = 3),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _buildSectionBody(context, provider),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionBody(BuildContext context, AppProvider provider) {
+    switch (_section) {
+      case 0:
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await provider.runClientClustering();
+                    },
+                    icon: const Icon(Icons.hub_outlined, size: 18),
+                    label: const Text('Segmentar con IA (X-Means)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: () => _showClientDialog(context),
+                  icon: const Icon(Icons.person_add, size: 18),
+                  label: const Text('Nuevo Cliente'),
+                ),
+              ],
+            ),
+            if (provider.clientClusters.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Card(
+                color: Colors.amber.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Resultado Clustering IA X-Means (/api/ai/cluster-clients):',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryDarkWood,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ...provider.clientClusters.map(
+                        (cl) => Text(
+                          '• Cluster #${cl.clusterId} (${cl.label}): ${cl.size} cliente(s)',
+                          style: const TextStyle(fontSize: 12.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            ...provider.clients.map(
+              (c) => Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppTheme.primaryWood,
+                    child: Icon(Icons.person, color: Colors.white),
+                  ),
+                  title: Text(
+                    '${c.name} (${c.segment})',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text('${c.email}\n${c.phone} • ${c.address}'),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () => _showClientDialog(context, existing: c),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        onPressed: () => provider.deleteClient(c.id),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      case 1:
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: () => _showCarpenterDialog(context),
+                icon: const Icon(Icons.engineering_outlined),
+                label: const Text('Registrar Carpintero (CU2)'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...provider.carpenters.map(
+              (cp) => Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppTheme.primaryDarkWood,
+                    child: Icon(Icons.handyman, color: AppTheme.accentAmber),
+                  ),
+                  title: Text(
+                    cp.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${cp.specialty} • ${cp.yearsExperience} años exp.\nTarifa: Bs ${cp.hourlyRate.toStringAsFixed(0)}/h • ${cp.email}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () =>
+                            _showCarpenterDialog(context, existing: cp),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        onPressed: () => provider.deleteCarpenter(cp.id),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      case 2:
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: () => _showManualInvoiceDialog(context),
+                icon: const Icon(Icons.post_add_rounded),
+                label: const Text('Emitir Factura Manual (CU5)'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...provider.invoices.map(
+              (inv) => Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.red.shade50,
+                    child: Icon(
+                      Icons.picture_as_pdf,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                  title: Text(
+                    'Factura ${inv.series}-${inv.number} • Bs ${inv.total.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    'Cliente: ${inv.clientName} (NIT: ${inv.clientNit})\nEmitida: ${inv.issuedAt}',
+                  ),
+                  isThreeLine: true,
+                  trailing: FilledButton.tonalIcon(
+                    onPressed: () =>
+                        PaymentAndInvoiceModals.previewInvoicePdf(context, inv),
+                    icon: const Icon(Icons.download_rounded, size: 16),
+                    label: const Text('PDF'),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      default:
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'Stock de Maderas e Insumos',
+              style: TextStyle(
+                fontSize: 15.5,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryDarkWood,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...provider.materials.map((mat) {
+              final low = mat.isLowStock;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: Icon(
+                    low ? Icons.warning_amber_rounded : Icons.layers_rounded,
+                    color: low ? Colors.red.shade700 : AppTheme.primaryWood,
+                  ),
+                  title: Text(
+                    mat.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${mat.type} • Mínimo: ${mat.minStock.toStringAsFixed(0)} ${mat.unit}',
+                  ),
+                  trailing: Text(
+                    '${mat.quantity.toStringAsFixed(0)} ${mat.unit}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: low
+                          ? Colors.red.shade700
+                          : AppTheme.primaryDarkWood,
+                    ),
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 16),
+            const Text(
+              'Catálogo Base de Muebles',
+              style: TextStyle(
+                fontSize: 15.5,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryDarkWood,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...provider.allProducts.map(
+              (prod) => Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  title: Text(
+                    prod.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    '${prod.woodType} • Bs ${prod.price.toStringAsFixed(0)}',
+                  ),
+                  trailing: OutlinedButton(
+                    onPressed: () => widget.onOrderProduct(prod),
+                    child: const Text('Crear Pedido'),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+    }
   }
 }
 
@@ -567,7 +1874,7 @@ class _StatBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
@@ -577,234 +1884,31 @@ class _StatBadge extends StatelessWidget {
                 : Colors.white.withValues(alpha: 0.15),
           ),
         ),
-        child: Row(
+        child: Column(
           children: [
             Icon(
               icon,
-              size: 18,
+              size: 16,
               color: highlight ? AppTheme.accentAmber : Colors.white70,
             ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 10.5,
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
+            ),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70, fontSize: 10),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-// ── TAB 2: PEDIDOS Y COTIZACIONES ───────────────────────────────────────────
-
-class _OrdersTab extends StatelessWidget {
-  final VoidCallback onAddOrder;
-
-  const _OrdersTab({required this.onAddOrder});
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'En fabricación':
-        return Colors.blue.shade700;
-      case 'Listo':
-        return Colors.green.shade700;
-      case 'Entregado':
-        return Colors.teal.shade700;
-      default:
-        return Colors.orange.shade800;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = AppScope.of(context);
-    final orders = provider.orders;
-
-    if (orders.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.assignment_outlined, size: 56, color: Colors.grey),
-            const SizedBox(height: 12),
-            const Text('No hay pedidos registrados aún'),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: onAddOrder,
-              icon: const Icon(Icons.add),
-              label: const Text('Crear primer pedido'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        final order = orders[index];
-        final pendingBalance = order.totalAmount - order.advancePayment;
-        final color = _statusColor(order.status);
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Código: ${order.id}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black54,
-                        fontSize: 12.5,
-                      ),
-                    ),
-                    PopupMenuButton<String>(
-                      onSelected: (newStatus) {
-                        provider.updateOrderStatus(order.id, newStatus);
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: 'Pendiente',
-                          child: Text('Marcar: Pendiente'),
-                        ),
-                        PopupMenuItem(
-                          value: 'En fabricación',
-                          child: Text('Marcar: En fabricación'),
-                        ),
-                        PopupMenuItem(
-                          value: 'Listo',
-                          child: Text('Marcar: Listo para entrega'),
-                        ),
-                        PopupMenuItem(
-                          value: 'Entregado',
-                          child: Text('Marcar: Entregado'),
-                        ),
-                      ],
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: color.withValues(alpha: 0.5)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              order.status,
-                              style: TextStyle(
-                                color: color,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(Icons.edit_outlined, size: 14, color: color),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  order.productName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryDarkWood,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.person_outline, size: 16, color: Colors.black54),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Cliente: ${order.clientName}',
-                      style: const TextStyle(fontSize: 13.5),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Icon(Icons.forest_outlined, size: 16, color: Colors.black54),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Madera: ${order.woodType} • Entrega: ${order.deliveryDate}',
-                      style: const TextStyle(fontSize: 13, color: Colors.black87),
-                    ),
-                  ],
-                ),
-                if (order.specifications.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    order.specifications,
-                    style: const TextStyle(fontSize: 12.5, color: Colors.black54),
-                  ),
-                ],
-                const Divider(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _AmountColumn(
-                      label: 'Total',
-                      amount: order.totalAmount,
-                      color: AppTheme.primaryDarkWood,
-                    ),
-                    _AmountColumn(
-                      label: 'Adelanto',
-                      amount: order.advancePayment,
-                      color: Colors.green.shade700,
-                    ),
-                    _AmountColumn(
-                      label: 'Saldo',
-                      amount: pendingBalance,
-                      color: pendingBalance > 0
-                          ? Colors.red.shade700
-                          : Colors.grey,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
@@ -842,89 +1946,7 @@ class _AmountColumn extends StatelessWidget {
   }
 }
 
-// ── TAB 3: INVENTARIO DE MADERAS E INSUMOS ──────────────────────────────────
-
-class _InventoryTab extends StatelessWidget {
-  const _InventoryTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = AppScope.of(context);
-    final materials = provider.materials;
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: materials.length,
-      itemBuilder: (context, index) {
-        final mat = materials[index];
-        final low = mat.isLowStock;
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: low
-                  ? Colors.red.shade100
-                  : AppTheme.primaryWood.withValues(alpha: 0.12),
-              child: Icon(
-                low ? Icons.warning_amber_rounded : Icons.layers_rounded,
-                color: low ? Colors.red.shade800 : AppTheme.primaryWood,
-              ),
-            ),
-            title: Text(
-              mat.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text(
-                  'Categoría: ${mat.type} • Costo: Bs ${mat.costPerUnit.toStringAsFixed(1)} / ${mat.unit}',
-                  style: const TextStyle(fontSize: 12.5),
-                ),
-                if (low)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Stock bajo (Mínimo requerido: ${mat.minStock.toStringAsFixed(0)} ${mat.unit})',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.red.shade700,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  mat.quantity.toStringAsFixed(0),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: low ? Colors.red.shade700 : AppTheme.primaryDarkWood,
-                  ),
-                ),
-                Text(
-                  mat.unit,
-                  style: const TextStyle(fontSize: 11, color: Colors.black54),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ── TAB 5: PERFIL Y CONEXIÓN AL BACKEND ─────────────────────────────────────
+// ── TAB 5: PERFIL Y CONEXIÓN AL GATEWAY ─────────────────────────────────────
 
 class _ProfileTab extends StatefulWidget {
   final UserEntity? user;
@@ -994,7 +2016,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          user?.email ?? 'sin-correo@carpinteria.bo',
+                          user?.email ?? 'carpintero@carpinteria.com',
                           style: const TextStyle(color: Colors.black54),
                         ),
                         const SizedBox(height: 4),
@@ -1008,7 +2030,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Rol: ${(user?.role ?? 'carpintero').toUpperCase()}',
+                            'Rol: ${(user?.role ?? 'CARPENTER').toUpperCase()}',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -1024,8 +2046,6 @@ class _ProfileTabState extends State<_ProfileTab> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Configuración de Backend API
           Card(
             child: Padding(
               padding: const EdgeInsets.all(18),
@@ -1037,7 +2057,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                       Icon(Icons.cloud_sync_rounded, color: AppTheme.primaryWood),
                       SizedBox(width: 8),
                       Text(
-                        'Configuración de Backend API',
+                        'Configuración de API Gateway (:3000)',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1048,14 +2068,14 @@ class _ProfileTabState extends State<_ProfileTab> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'El cliente HTTP envía automáticamente el token JWT en el header Authorization: Bearer <token>.',
+                    'Conecta a Backend2-NestJS-Gateway (/auth, /graphql, /api/quotations, /api/payments, /api/invoices, /api/ai/* y WebSocket /ws).',
                     style: TextStyle(fontSize: 12.5, color: Colors.black54),
                   ),
                   const SizedBox(height: 14),
                   TextField(
                     controller: _urlController,
                     decoration: const InputDecoration(
-                      labelText: 'URL Base del Backend (BASE_URL)',
+                      labelText: 'URL Base del Gateway (BASE_URL)',
                       prefixIcon: Icon(Icons.link),
                     ),
                   ),
@@ -1065,20 +2085,21 @@ class _ProfileTabState extends State<_ProfileTab> {
                     child: FilledButton.icon(
                       onPressed: () async {
                         await provider.updateBackendUrl(_urlController.text);
+                        _urlController.text = AppConfig.baseUrl;
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 provider.isUsingMock
-                                    ? 'URL guardada. Backend sin respuesta, usando datos locales.'
-                                    : '¡Conectado exitosamente al Backend!',
+                                    ? 'URL guardada (${AppConfig.baseUrl}). Sin respuesta remota, modo híbrido activo.'
+                                    : '¡Conectado exitosamente en modo Online a ${AppConfig.baseUrl}!',
                               ),
                             ),
                           );
                         }
                       },
                       icon: const Icon(Icons.save_outlined),
-                      label: const Text('Guardar y Probar Conexión'),
+                      label: const Text('Guardar y Probar Conexión Online'),
                     ),
                   ),
                 ],
@@ -1086,7 +2107,6 @@ class _ProfileTabState extends State<_ProfileTab> {
             ),
           ),
           const SizedBox(height: 20),
-
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.red.shade700,
