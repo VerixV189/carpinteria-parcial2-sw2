@@ -11,15 +11,54 @@ class AppConfig {
     }
   }
 
+  static String? _safeGetEnv(String key) {
+    try {
+      if (!dotenv.isInitialized) return null;
+      return dotenv.maybeGet(key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String normalizeBaseUrl(String raw) {
+    var clean = raw.trim();
+    if (clean.isEmpty) return 'http://10.0.2.2:3000';
+    // Migrar automáticamente el antiguo puerto de prueba 8000/api al Gateway NestJS :3000
+    if (clean == 'http://10.0.2.2:8000/api' ||
+        clean == 'http://10.0.2.2:8000' ||
+        clean == 'http://localhost:8000/api') {
+      clean = 'http://10.0.2.2:3000';
+    }
+    while (clean.endsWith('/')) {
+      clean = clean.substring(0, clean.length - 1);
+    }
+    if (clean.endsWith('/api')) {
+      clean = clean.substring(0, clean.length - 4);
+    }
+    return clean;
+  }
+
   static String get baseUrl {
-    if (_customBaseUrl.isNotEmpty) return _customBaseUrl;
-    return dotenv.maybeGet('BASE_URL') ?? 'http://10.0.2.2:8000/api';
+    if (_customBaseUrl.isNotEmpty) return normalizeBaseUrl(_customBaseUrl);
+    final envUrl = _safeGetEnv('BASE_URL') ?? 'http://10.0.2.2:3000';
+    return normalizeBaseUrl(envUrl);
+  }
+
+  static String get wsBaseUrl {
+    final base = baseUrl;
+    if (base.startsWith('https://')) {
+      return 'wss://${base.substring(8)}';
+    }
+    if (base.startsWith('http://')) {
+      return 'ws://${base.substring(7)}';
+    }
+    return 'ws://$base';
   }
 
   static void setCustomBaseUrl(String url) {
-    _customBaseUrl = url.trim();
+    _customBaseUrl = normalizeBaseUrl(url);
   }
 
   static String get appName =>
-      dotenv.maybeGet('APP_NAME') ?? 'Carpintería Móvil';
+      _safeGetEnv('APP_NAME') ?? 'Carpintería Móvil';
 }
