@@ -50,15 +50,22 @@ class _LoginPageState extends State<LoginPage> {
 
   void _fillDemoClient() {
     setState(() {
-      _emailController.text = 'cliente@carpinteria.bo';
-      _passwordController.text = '123456';
+      _emailController.text = 'cliente@carpinteria.com';
+      _passwordController.text = 'cliente123';
+    });
+  }
+
+  void _fillDemoCarpenter() {
+    setState(() {
+      _emailController.text = 'carpintero@carpinteria.com';
+      _passwordController.text = 'carp123';
     });
   }
 
   void _fillDemoAdmin() {
     setState(() {
-      _emailController.text = 'maestro@carpinteria.bo';
-      _passwordController.text = '123456';
+      _emailController.text = 'admin@carpinteria.com';
+      _passwordController.text = 'admin123';
     });
   }
 
@@ -71,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             Icon(Icons.dns_rounded, color: AppTheme.primaryWood),
             SizedBox(width: 8),
-            Text('Conexión Backend'),
+            Text('Conexión Gateway API'),
           ],
         ),
         content: Column(
@@ -79,15 +86,15 @@ class _LoginPageState extends State<LoginPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'URL base de tu API REST. Si el servidor no responde, la app funcionará en modo híbrido (Demo local).',
+              'URL del API Gateway (Backend2 NestJS en puerto 3000). En emulador Android usa http://10.0.2.2:3000.',
               style: TextStyle(fontSize: 13, color: Colors.black54),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: urlCtrl,
               decoration: const InputDecoration(
-                labelText: 'BASE_URL',
-                hintText: 'http://192.168.1.10:8000/api',
+                labelText: 'BASE_URL (Gateway :3000)',
+                hintText: 'http://10.0.2.2:3000',
                 prefixIcon: Icon(Icons.link),
               ),
             ),
@@ -142,7 +149,6 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               child: Column(
                 children: [
-                  // Botón superior para configurar IP del Backend
                   Align(
                     alignment: Alignment.topRight,
                     child: TextButton.icon(
@@ -152,14 +158,15 @@ class _LoginPageState extends State<LoginPage> {
                         color: AppTheme.accentAmber,
                         size: 18,
                       ),
-                      label: const Text(
-                        'Configurar API',
-                        style: TextStyle(color: AppTheme.accentAmber, fontSize: 12),
+                      label: Text(
+                        'Gateway: ${AppConfig.baseUrl}',
+                        style: const TextStyle(
+                          color: AppTheme.accentAmber,
+                          fontSize: 11.5,
+                        ),
                       ),
                     ),
                   ),
-
-                  // Logo e identidad de la Carpintería
                   Container(
                     width: 84,
                     height: 84,
@@ -189,15 +196,14 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Gestión de Muebles, Pedidos y Asistente IA',
+                    'Portal Cliente • Taller Carpintero • Admin • IA Online/Offline',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 12.5,
+                      color: Colors.white.withValues(alpha: 0.85),
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // Tarjeta de formulario
+                  const SizedBox(height: 22),
                   Card(
                     elevation: 6,
                     shadowColor: Colors.black26,
@@ -221,23 +227,21 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'Ingresa tus credenciales para acceder al taller',
-                              style: TextStyle(fontSize: 13, color: Colors.black54),
+                              'Conecta en modo Online con el Gateway (:3000) o híbrido local',
+                              style: TextStyle(fontSize: 12.5, color: Colors.black54),
                             ),
-                            const SizedBox(height: 20),
-
+                            const SizedBox(height: 18),
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               validator: Validators.email,
                               decoration: const InputDecoration(
                                 labelText: 'Correo electrónico',
-                                hintText: 'ejemplo@carpinteria.bo',
+                                hintText: 'cliente@carpinteria.com',
                                 prefixIcon: Icon(Icons.email_outlined),
                               ),
                             ),
-                            const SizedBox(height: 16),
-
+                            const SizedBox(height: 14),
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
@@ -259,38 +263,59 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 10),
-
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Accesos rápidos (Usuarios Seed del Backend):',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
                             Wrap(
-                              spacing: 8,
-                              alignment: WrapAlignment.spaceBetween,
+                              spacing: 6,
+                              runSpacing: 6,
                               children: [
-                                TextButton.icon(
-                                  onPressed: _fillDemoClient,
-                                  icon: const Icon(
+                                ActionChip(
+                                  avatar: const Icon(
                                     Icons.storefront_rounded,
                                     size: 16,
+                                    color: AppTheme.primaryWood,
                                   ),
                                   label: const Text(
-                                    'Demo Cliente (Marketplace)',
-                                    style: TextStyle(fontSize: 12),
+                                    'Cliente (Portal)',
+                                    style: TextStyle(fontSize: 11.5),
                                   ),
+                                  onPressed: _fillDemoClient,
                                 ),
-                                TextButton.icon(
-                                  onPressed: _fillDemoAdmin,
-                                  icon: const Icon(
+                                ActionChip(
+                                  avatar: const Icon(
+                                    Icons.construction_rounded,
+                                    size: 16,
+                                    color: AppTheme.primaryWood,
+                                  ),
+                                  label: const Text(
+                                    'Carpintero (Taller)',
+                                    style: TextStyle(fontSize: 11.5),
+                                  ),
+                                  onPressed: _fillDemoCarpenter,
+                                ),
+                                ActionChip(
+                                  avatar: const Icon(
                                     Icons.admin_panel_settings_outlined,
                                     size: 16,
+                                    color: AppTheme.primaryWood,
                                   ),
                                   label: const Text(
-                                    'Demo Admin (Taller)',
-                                    style: TextStyle(fontSize: 12),
+                                    'Admin General',
+                                    style: TextStyle(fontSize: 11.5),
                                   ),
+                                  onPressed: _fillDemoAdmin,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-
+                            const SizedBox(height: 14),
                             SizedBox(
                               height: 50,
                               child: ElevatedButton(
@@ -307,8 +332,7 @@ class _LoginPageState extends State<LoginPage> {
                                     : const Text('Ingresar al Sistema'),
                               ),
                             ),
-                            const SizedBox(height: 16),
-
+                            const SizedBox(height: 14),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
