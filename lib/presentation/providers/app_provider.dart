@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
+import 'package:carpinteria_movil_sw2/core/services/realtime_notification_service.dart';
 import 'package:carpinteria_movil_sw2/core/storage/local_storage.dart';
 import 'package:carpinteria_movil_sw2/core/storage/sqlite_database.dart';
 import 'package:carpinteria_movil_sw2/data/repositories/repository_impl.dart';
@@ -8,12 +11,22 @@ import 'package:carpinteria_movil_sw2/domain/repositories/repository.dart';
 
 class AppProvider extends ChangeNotifier {
   final CarpentryRepository _repository;
+  late final RealtimeNotificationService _realtimeService;
+  Timer? _pollingTimer;
 
   UserEntity? _currentUser;
   List<ProductEntity> _products = [];
   List<OrderEntity> _orders = [];
   List<WoodMaterialEntity> _materials = [];
+  List<ClientProfileEntity> _clients = [];
+  List<ClientClusterEntity> _clientClusters = [];
+  List<CarpenterEntity> _carpenters = [];
+  List<QuotationEntity> _quotations = [];
+  List<DeliveryEntity> _deliveries = [];
+  List<InvoiceEntity> _invoices = [];
   final List<CartItemEntity> _cart = [];
+  final List<AppNotificationEntity> _notifications = [];
+  AppNotificationEntity? _latestToastNotification;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -21,12 +34,30 @@ class AppProvider extends ChangeNotifier {
   String _searchQuery = '';
 
   AppProvider({CarpentryRepository? repository})
-      : _repository = repository ?? CarpentryRepositoryImpl();
+      : _repository = repository ?? CarpentryRepositoryImpl() {
+    _realtimeService = RealtimeNotificationService(
+      onNotification: _handleIncomingRealtimeNotification,
+    );
+  }
 
   UserEntity? get currentUser => _currentUser;
   bool get isAuthenticated => _currentUser != null;
-  bool get isClientRole =>
-      (_currentUser?.role.toLowerCase() ?? 'cliente') == 'cliente';
+
+  bool get isClientRole {
+    final role = (_currentUser?.role ?? 'cliente').trim().toLowerCase();
+    return role == 'cliente' || role == 'client';
+  }
+
+  bool get isAdminRole {
+    final role = (_currentUser?.role ?? '').trim().toLowerCase();
+    return role == 'admin' || role == 'administrador';
+  }
+
+  bool get isCarpenterRole {
+    final role = (_currentUser?.role ?? '').trim().toLowerCase();
+    return role == 'carpintero' || role == 'carpenter' || role == 'taller';
+  }
+
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isUsingMock => _repository.isUsingMock;
@@ -47,7 +78,6 @@ class AppProvider extends ChangeNotifier {
     }).toList();
   }
 
-  /// Solo muebles disponibles a la venta (stock > 0) para el Marketplace del cliente
   List<ProductEntity> get availableMarketplaceProducts {
     return filteredProducts.where((p) => p.stock > 0).toList();
   }
@@ -55,14 +85,77 @@ class AppProvider extends ChangeNotifier {
   List<ProductEntity> get allProducts => _products;
   List<OrderEntity> get orders => _orders;
   List<WoodMaterialEntity> get materials => _materials;
+  List<ClientProfileEntity> get clients => _clients;
+  List<ClientClusterEntity> get clientClusters => _clientClusters;
+  List<CarpenterEntity> get carpenters => _carpenters;
+  List<QuotationEntity> get quotations => _quotations;
+  List<DeliveryEntity> get deliveries => _deliveries;
+  List<InvoiceEntity> get invoices => _invoices;
 
-  /// Pedidos y cotizaciones que pertenecen exclusivamente al cliente actual
+  List<AppNotificationEntity> get notifications =>
+      List.unmodifiable(_notifications);
+
+  int get unreadNotificationsCount =>
+      _notifications.where((n) => !n.read).length;
+
+  AppNotificationEntity? get latestToastNotification =>
+      _latestToastNotification;
+
+  void clearLatestToast() {
+    _latestToastNotification = null;
+  }
+
+  void markAllNotificationsRead() {
+    for (var i = 0; i < _notifications.length; i++) {
+      _notifications[i] = _notifications[i].copyWith(read: true);
+    }
+    notifyListeners();
+  }
+
+  void pushNotification({
+    required String title,
+    required String body,
+    String? orderId,
+    String? status,
+  }) {
+    final notif = AppNotificationEntity(
+      id: 'N-${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      body: body,
+      orderId: orderId,
+      status: status,
+      timestamp: DateTime.now(),
+    );
+    _notifications.insert(0, notif);
+    _latestToastNotification = notif;
+    notifyListeners();
+  }
+
+  void _handleIncomingRealtimeNotification(AppNotificationEntity notif) {
+    _notifications.insert(0, notif);
+    _latestToastNotification = notif;
+    notifyListeners();
+    // Refrescar pedidos y cotizaciones silenciosamente
+    refreshSilent();
+  }
+
+  /// Pedidos y cotizaciones que pertenecen al cliente actual
   List<OrderEntity> get clientOrders {
-    final userName = (_currentUser?.name ?? '').trim().toLowerCase();
-    if (userName.isEmpty) return [];
-    return _orders
-        .where((o) => o.clientName.trim().toLowerCase() == userName)
-        .toList();
+    if (isClientRole) {
+      final userEmail = (_currentUser?.email ?? '').trim().toLowerCase();
+      final userName = (_currentUser?.name ?? '').trim().toLowerCase();
+      final matching = _orders.where((o) {
+        if (userEmail.isNotEmpty &&
+            (o.clientEmail.toLowerCase() == userEmail ||
+                o.clientId.toLowerCase() == userEmail)) {
+          return true;
+        }
+        return userName.isNotEmpty &&
+            o.clientName.trim().toLowerCase() == userName;
+      }).toList();
+      return matching.isNotEmpty ? matching : _orders;
+    }
+    return _orders;
   }
 
   // ── Carrito de Compras del Cliente ────────────────────────────────────────
@@ -114,6 +207,10 @@ class AppProvider extends ChangeNotifier {
   Future<bool> checkoutCart({
     required double advancePayment,
     required String deliveryNotes,
+    String deliveryType = 'DELIVERY',
+    String? deliveryAddress,
+    double? deliveryLat,
+    double? deliveryLng,
   }) async {
     if (_cart.isEmpty) return false;
     final clientName = _currentUser?.name ?? 'Cliente';
@@ -126,18 +223,22 @@ class AppProvider extends ChangeNotifier {
         .fold<int>(7, (a, b) => a > b ? a : b);
     final estDate = DateTime.now().add(Duration(days: maxDays));
     final dateStr =
-        '${estDate.day.toString().padLeft(2, '0')}/${estDate.month.toString().padLeft(2, '0')}/${estDate.year}';
+        '${estDate.year}-${estDate.month.toString().padLeft(2, '0')}-${estDate.day.toString().padLeft(2, '0')}';
 
     final ok = await createOrder(
       clientName: clientName,
       productName: summaryNames,
       woodType: woods,
       specifications: deliveryNotes.isEmpty
-          ? 'Compra desde Marketplace Móvil'
+          ? 'Compra desde Catálogo Móvil'
           : deliveryNotes,
       totalAmount: total,
       advancePayment: advancePayment,
       deliveryDate: dateStr,
+      deliveryType: deliveryType,
+      deliveryAddress: deliveryAddress ?? deliveryNotes,
+      deliveryLat: deliveryLat,
+      deliveryLng: deliveryLng,
     );
     if (ok) {
       _cart.clear();
@@ -146,19 +247,40 @@ class AppProvider extends ChangeNotifier {
     return ok;
   }
 
-  // ── Sesión y Datos ────────────────────────────────────────────────────────
+  // ── Sesión, Tiempo Real y Sincronización ──────────────────────────────────
 
   Future<void> initializeSession() async {
     await LocalStorage.init();
     final savedUrl = LocalStorage.getCustomBaseUrl();
     if (savedUrl != null && savedUrl.isNotEmpty) {
-      AppConfig.setCustomBaseUrl(savedUrl);
+      final normalized = AppConfig.normalizeBaseUrl(savedUrl);
+      AppConfig.setCustomBaseUrl(normalized);
+      if (normalized != savedUrl) {
+        await LocalStorage.saveCustomBaseUrl(normalized);
+      }
     }
     _currentUser = await _repository.getSavedSession();
     if (_currentUser != null) {
       await loadCarpentryData();
+      _startRealtimeServices();
     }
     notifyListeners();
+  }
+
+  void _startRealtimeServices() {
+    _realtimeService.connect(includeGraphqlSubscription: !isClientRole);
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 18), (_) {
+      if (isAuthenticated) {
+        refreshSilent();
+      }
+    });
+  }
+
+  void _stopRealtimeServices() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _realtimeService.disconnect();
   }
 
   Future<bool> login(String email, String password) async {
@@ -169,6 +291,7 @@ class AppProvider extends ChangeNotifier {
     try {
       _currentUser = await _repository.login(email: email, password: password);
       await loadCarpentryData();
+      _startRealtimeServices();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -200,6 +323,7 @@ class AppProvider extends ChangeNotifier {
         role: role,
       );
       await loadCarpentryData();
+      _startRealtimeServices();
       _isLoading = false;
       notifyListeners();
       return true;
@@ -212,9 +336,11 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _stopRealtimeServices();
     await _repository.logout();
     _currentUser = null;
     _cart.clear();
+    _notifications.clear();
     notifyListeners();
   }
 
@@ -226,10 +352,28 @@ class AppProvider extends ChangeNotifier {
         _repository.getProducts(),
         _repository.getOrders(),
         _repository.getMaterials(),
+        _repository.getQuotations(),
+        _repository.getInvoices(
+          clientEmail: isClientRole ? _currentUser?.email : null,
+        ),
       ]);
       _products = results[0] as List<ProductEntity>;
       _orders = results[1] as List<OrderEntity>;
       _materials = results[2] as List<WoodMaterialEntity>;
+      _quotations = results[3] as List<QuotationEntity>;
+      _invoices = results[4] as List<InvoiceEntity>;
+
+      if (!isClientRole) {
+        final adminResults = await Future.wait([
+          _repository.getClients(),
+          _repository.getCarpenters(),
+          _repository.getDeliveries(),
+        ]);
+        _clients = adminResults[0] as List<ClientProfileEntity>;
+        _carpenters = adminResults[1] as List<CarpenterEntity>;
+        _deliveries = adminResults[2] as List<DeliveryEntity>;
+      }
+
       await SqliteDatabase.syncAll(
         products: _products,
         orders: _orders,
@@ -243,6 +387,53 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshSilent() async {
+    try {
+      final prevOrderStatus = {for (final o in _orders) o.id: o.status};
+      final prevQuoteStatus = {for (final q in _quotations) q.id: q.status};
+
+      final nextOrders = await _repository.getOrders();
+      final nextQuotes = await _repository.getQuotations();
+      final nextInvoices = await _repository.getInvoices(
+        clientEmail: isClientRole ? _currentUser?.email : null,
+      );
+
+      for (final o in nextOrders) {
+        final prev = prevOrderStatus[o.id];
+        if (prev != null && prev != o.status) {
+          pushNotification(
+            title: 'Pedido #${o.id} actualizado',
+            body: '${o.productName} pasó a estado: ${o.status}',
+            orderId: o.id,
+            status: o.status,
+          );
+        }
+      }
+
+      for (final q in nextQuotes) {
+        final prev = prevQuoteStatus[q.id];
+        if (prev != null && prev != q.status) {
+          pushNotification(
+            title: 'Cotización #${q.id.substring(0, q.id.length.clamp(0, 8))}',
+            body:
+                '${q.description} ahora está: ${q.statusLabel} (Bs ${q.payableAmount.toStringAsFixed(0)})',
+            orderId: q.id,
+            status: q.status,
+          );
+        }
+      }
+
+      _orders = nextOrders;
+      _quotations = nextQuotes;
+      _invoices = nextInvoices;
+
+      if (!isClientRole) {
+        _deliveries = await _repository.getDeliveries();
+      }
+      notifyListeners();
+    } catch (_) {}
+  }
+
   void setCategory(String category) {
     _selectedCategory = category;
     notifyListeners();
@@ -253,6 +444,294 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── CU1: Clientes & Segmentación IA ───────────────────────────────────────
+
+  Future<bool> createClient({
+    required String name,
+    required String email,
+    String? phone,
+    String? address,
+    String segment = 'REGULAR',
+  }) async {
+    try {
+      final created = await _repository.createClient(
+        name: name,
+        email: email,
+        phone: phone,
+        address: address,
+        segment: segment,
+      );
+      _clients = [created, ..._clients];
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateClient({
+    required String id,
+    required String name,
+    required String email,
+    String? phone,
+    String? address,
+    String segment = 'REGULAR',
+  }) async {
+    try {
+      final updated = await _repository.updateClient(
+        id: id,
+        name: name,
+        email: email,
+        phone: phone,
+        address: address,
+        segment: segment,
+      );
+      _clients = _clients.map((c) => c.id == id ? updated : c).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteClient(String id) async {
+    try {
+      await _repository.deleteClient(id);
+      _clients = _clients.where((c) => c.id != id).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<List<ClientClusterEntity>> runClientClustering() async {
+    final clusters = await _repository.clusterClients();
+    _clientClusters = clusters;
+    notifyListeners();
+    return clusters;
+  }
+
+  // ── CU2: Carpinteros & Taller ─────────────────────────────────────────────
+
+  Future<bool> createCarpenter({
+    required String name,
+    required String email,
+    String? phone,
+    required String specialty,
+    int yearsExperience = 3,
+    double hourlyRate = 45.0,
+    bool active = true,
+  }) async {
+    try {
+      final created = await _repository.createCarpenter(
+        name: name,
+        email: email,
+        phone: phone,
+        specialty: specialty,
+        yearsExperience: yearsExperience,
+        hourlyRate: hourlyRate,
+        active: active,
+      );
+      _carpenters = [created, ..._carpenters];
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateCarpenter({
+    required String id,
+    required String name,
+    required String email,
+    String? phone,
+    required String specialty,
+    int yearsExperience = 3,
+    double hourlyRate = 45.0,
+    bool active = true,
+  }) async {
+    try {
+      final updated = await _repository.updateCarpenter(
+        id: id,
+        name: name,
+        email: email,
+        phone: phone,
+        specialty: specialty,
+        yearsExperience: yearsExperience,
+        hourlyRate: hourlyRate,
+        active: active,
+      );
+      _carpenters = _carpenters.map((c) => c.id == id ? updated : c).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteCarpenter(String id) async {
+    try {
+      await _repository.deleteCarpenter(id);
+      _carpenters = _carpenters.where((c) => c.id != id).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<List<OrderEntity>> getCarpenterWorkload(String carpenterId) {
+    return _repository.getCarpenterWorkload(carpenterId);
+  }
+
+  // ── CU3: Cotizaciones con IA & Negociación ────────────────────────────────
+
+  Future<AiEstimateEntity> estimateFurniture({
+    required String description,
+    required String woodType,
+    String? imageBase64,
+  }) {
+    return _repository.estimateFurniture(
+      description: description,
+      woodType: woodType,
+      imageBase64: imageBase64,
+    );
+  }
+
+  Future<QuotationEntity?> createQuotation({
+    required String description,
+    required String woodType,
+    required double estimatedPrice,
+    int quantity = 1,
+    String? photoUrl,
+    AiEstimateEntity? aiEstimate,
+    String deliveryType = 'DELIVERY',
+    String? deliveryAddress,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final clientId = (_currentUser?.email.isNotEmpty == true)
+          ? _currentUser!.email
+          : (_currentUser?.id ?? 'cliente@carpinteria.com');
+      final created = await _repository.createQuotation(
+        clientId: clientId,
+        description: description,
+        woodType: woodType,
+        estimatedPrice: estimatedPrice,
+        quantity: quantity,
+        photoUrl: photoUrl,
+        aiEstimate: aiEstimate,
+        deliveryType: deliveryType,
+        deliveryAddress: deliveryAddress,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      _quotations = [created, ..._quotations];
+      await loadCarpentryData();
+      notifyListeners();
+      return created;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<QuotationEntity?> respondQuotation({
+    required String id,
+    required String action,
+    double? counterAmount,
+    String? message,
+  }) async {
+    try {
+      final updated = await _repository.respondQuotation(
+        id: id,
+        action: action,
+        counterAmount: counterAmount,
+        message: message,
+      );
+      _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
+      notifyListeners();
+      return updated;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> sendQuotationFormalPrice({
+    required String id,
+    required double finalAmount,
+    String? notes,
+  }) async {
+    try {
+      final updated = await _repository.sendQuotationFormalPrice(
+        id: id,
+        finalAmount: finalAmount,
+        notes: notes,
+      );
+      _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
+      pushNotification(
+        title: 'Cotización enviada al cliente',
+        body:
+            'Precio formal Bs ${finalAmount.toStringAsFixed(0)} enviado para ${updated.description}',
+        orderId: id,
+        status: 'QUOTED',
+      );
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> approveQuotation({
+    required String id,
+    double? finalAmount,
+    String? notes,
+  }) async {
+    try {
+      final updated = await _repository.approveQuotation(
+        id: id,
+        finalAmount: finalAmount,
+        notes: notes,
+      );
+      _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> rejectQuotation({
+    required String id,
+    String? reason,
+  }) async {
+    try {
+      final updated = await _repository.rejectQuotation(
+        id: id,
+        reason: reason,
+      );
+      _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ── CU4: Pedidos, Pasos de Producción y Entregas ──────────────────────────
+
   Future<bool> createOrder({
     required String clientName,
     required String productName,
@@ -261,6 +740,11 @@ class AppProvider extends ChangeNotifier {
     required double totalAmount,
     required double advancePayment,
     required String deliveryDate,
+    String? clientId,
+    String deliveryType = 'DELIVERY',
+    String? deliveryAddress,
+    double? deliveryLat,
+    double? deliveryLng,
   }) async {
     try {
       final created = await _repository.createOrder(
@@ -271,6 +755,11 @@ class AppProvider extends ChangeNotifier {
         totalAmount: totalAmount,
         advancePayment: advancePayment,
         deliveryDate: deliveryDate,
+        clientId: clientId,
+        deliveryType: deliveryType,
+        deliveryAddress: deliveryAddress,
+        deliveryLat: deliveryLat,
+        deliveryLng: deliveryLng,
       );
       _orders = [created, ..._orders];
       await SqliteDatabase.syncAll(
@@ -295,6 +784,12 @@ class AppProvider extends ChangeNotifier {
         final copy = List<OrderEntity>.from(_orders);
         copy[idx] = updated;
         _orders = copy;
+        pushNotification(
+          title: 'Pedido #$orderId actualizado',
+          body: '${updated.productName} ahora está en: ${updated.status}',
+          orderId: orderId,
+          status: updated.status,
+        );
         await SqliteDatabase.syncAll(
           products: _products,
           orders: _orders,
@@ -305,10 +800,207 @@ class AppProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
+  Future<bool> assignCarpenter(String orderId, String carpenterId) async {
+    try {
+      final updated = await _repository.assignCarpenter(orderId, carpenterId);
+      _orders = _orders.map((o) => o.id == orderId ? updated : o).toList();
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> updateStepStatus(String stepId, String status) async {
+    try {
+      await _repository.updateStepStatus(stepId, status);
+      await loadCarpentryData();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> linkQuotation(String orderId, String quotationId) async {
+    try {
+      await _repository.linkQuotation(orderId, quotationId);
+      await loadCarpentryData();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<DeliveryCapacityEntity> checkDeliveryCapacity(String date) {
+    return _repository.getDeliveryCapacity(date);
+  }
+
+  Future<bool> scheduleDelivery({
+    required String orderId,
+    required String scheduledDate,
+    required String timeSlot,
+    required String address,
+    String? notes,
+    String deliveryType = 'DELIVERY',
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final created = await _repository.scheduleDelivery(
+        orderId: orderId,
+        scheduledDate: scheduledDate,
+        timeSlot: timeSlot,
+        address: address,
+        notes: notes,
+        deliveryType: deliveryType,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      _deliveries = [created, ..._deliveries];
+      await loadCarpentryData();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateDeliveryStatus(String id, String status) async {
+    try {
+      final updated = await _repository.updateDeliveryStatus(id, status);
+      _deliveries = _deliveries.map((d) => d.id == id ? updated : d).toList();
+      await loadCarpentryData();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> rescheduleDelivery({
+    required String id,
+    required String newDate,
+    String? timeSlot,
+  }) async {
+    try {
+      final updated = await _repository.rescheduleDelivery(
+        id: id,
+        newDate: newDate,
+        timeSlot: timeSlot,
+      );
+      _deliveries = _deliveries.map((d) => d.id == id ? updated : d).toList();
+      await loadCarpentryData();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ── CU5: Facturas y Recibos PDF ───────────────────────────────────────────
+
+  Future<bool> createManualInvoice({
+    required String clientName,
+    required String clientNit,
+    String? clientEmail,
+    String? orderId,
+    required String description,
+    required int quantity,
+    required double unitPrice,
+  }) async {
+    try {
+      final created = await _repository.createInvoice(
+        clientName: clientName,
+        clientNit: clientNit,
+        clientEmail: clientEmail,
+        orderId: orderId,
+        items: [
+          {
+            'description': description,
+            'quantity': quantity,
+            'unit_price': unitPrice,
+          }
+        ],
+      );
+      _invoices = [created, ..._invoices];
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Uint8List> downloadInvoicePdf(String invoiceId) {
+    return _repository.downloadInvoicePdf(invoiceId);
+  }
+
+  // ── CU6: Pagos y Auditoría DynamoDB ───────────────────────────────────────
+
+  Future<PaymentResultEntity?> processPayment({
+    required String quotationId,
+    required double amount,
+    required String cardNumber,
+    required String cardHolder,
+    required int expiryMonth,
+    required int expiryYear,
+    required String cvv,
+  }) async {
+    try {
+      final res = await _repository.processPayment(
+        quotationId: quotationId,
+        amount: amount,
+        cardNumber: cardNumber,
+        cardHolder: cardHolder,
+        expiryMonth: expiryMonth,
+        expiryYear: expiryYear,
+        cvv: cvv,
+      );
+      pushNotification(
+        title: 'Pago aprobado y factura emitida',
+        body:
+            'Transacción ${res.gatewayTransactionId} por Bs ${res.amount.toStringAsFixed(2)}',
+        orderId: quotationId,
+        status: 'CONVERTED',
+      );
+      await loadCarpentryData();
+      return res;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<List<PaymentLogEntity>> getPaymentLogs(String paymentId) {
+    return _repository.getPaymentLogs(paymentId);
+  }
+
+  // ── CU7: Agente IA Online & Reportes NL Online ────────────────────────────
+
+  Future<OnlineAgentReplyEntity> askOnlineAgent({
+    required String query,
+    String? sessionId,
+  }) {
+    return _repository.askOnlineAgent(query: query, sessionId: sessionId);
+  }
+
+  Future<OnlineNlReportEntity> generateOnlineReport(String query) {
+    return _repository.generateOnlineReport(query);
+  }
+
   Future<void> updateBackendUrl(String url) async {
-    AppConfig.setCustomBaseUrl(url);
-    await LocalStorage.saveCustomBaseUrl(url);
+    final normalized = AppConfig.normalizeBaseUrl(url);
+    AppConfig.setCustomBaseUrl(normalized);
+    await LocalStorage.saveCustomBaseUrl(normalized);
     await loadCarpentryData();
+    if (isAuthenticated) {
+      _startRealtimeServices();
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopRealtimeServices();
+    super.dispose();
   }
 }
 
