@@ -6,6 +6,8 @@ import 'package:carpinteria_movil_sw2/core/services/whisper_service.dart';
 import 'package:carpinteria_movil_sw2/domain/entities/entity.dart';
 import 'package:carpinteria_movil_sw2/presentation/pages/splash/splash_page.dart';
 import 'package:carpinteria_movil_sw2/presentation/providers/app_provider.dart';
+import 'package:carpinteria_movil_sw2/presentation/widgets/notification_bell_button.dart';
+import 'package:carpinteria_movil_sw2/presentation/widgets/payment_and_invoice_modals.dart';
 import 'package:carpinteria_movil_sw2/routes/app_router.dart';
 import 'package:carpinteria_movil_sw2/theme/app_theme.dart';
 
@@ -23,7 +25,7 @@ class _ClientHomePageState extends State<ClientHomePage> {
   void _goToQuoteWithProduct(ProductEntity product) {
     setState(() {
       _productForQuote = product;
-      _currentIndex = 1; // Pestaña Cotizar
+      _currentIndex = 1; // Pestaña Cotizar IA
     });
   }
 
@@ -33,10 +35,10 @@ class _ClientHomePageState extends State<ClientHomePage> {
     final cartCount = provider.cartItemCount;
 
     final titles = [
-      'Marketplace de Muebles',
-      'Cotizaciones y Mis Pedidos',
-      'Mi Carrito de Compras',
-      'Asistente al Cliente',
+      'Portal de Muebles',
+      'Cotizar con IA y Mis Pedidos',
+      'Mis Recibos y Carrito',
+      'Agente IA (Online / Offline)',
       'Mi Perfil',
     ];
 
@@ -47,23 +49,33 @@ class _ClientHomePageState extends State<ClientHomePage> {
           children: [
             Text(
               titles[_currentIndex],
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
             ),
             Text(
-              'Hola, ${provider.currentUser?.name ?? "Cliente"}',
-              style: const TextStyle(
-                fontSize: 11.5,
-                color: AppTheme.accentAmber,
+              provider.isUsingMock
+                  ? 'Hola, ${provider.currentUser?.name ?? "Cliente"} • Modo Local'
+                  : 'Hola, ${provider.currentUser?.name ?? "Cliente"} • Online (${AppConfig.baseUrl})',
+              style: TextStyle(
+                fontSize: 11,
+                color: provider.isUsingMock
+                    ? AppTheme.accentAmber
+                    : Colors.greenAccent,
               ),
             ),
           ],
         ),
         actions: [
+          const NotificationBellButton(),
+          IconButton(
+            tooltip: 'Sincronizar',
+            onPressed: provider.loadCarpentryData,
+            icon: const Icon(Icons.sync_rounded),
+          ),
           Stack(
             alignment: Alignment.center,
             children: [
               IconButton(
-                tooltip: 'Ver Carrito',
+                tooltip: 'Ver Carrito y Recibos',
                 onPressed: () => setState(() => _currentIndex = 2),
                 icon: const Icon(Icons.shopping_cart_outlined),
               ),
@@ -102,7 +114,7 @@ class _ClientHomePageState extends State<ClientHomePage> {
             preselectedProduct: _productForQuote,
             onClearPreselected: () => setState(() => _productForQuote = null),
           ),
-          _CartTab(
+          _CartAndInvoicesTab(
             onOrderCompleted: () => setState(() => _currentIndex = 1),
           ),
           const _ClientAssistantTab(),
@@ -119,27 +131,27 @@ class _ClientHomePageState extends State<ClientHomePage> {
             label: 'Tienda',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.design_services_outlined),
-            selectedIcon: Icon(Icons.design_services_rounded),
-            label: 'Cotizar',
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: 'Cotizar IA',
           ),
           NavigationDestination(
             icon: Badge(
               isLabelVisible: cartCount > 0,
               label: Text('$cartCount'),
-              child: const Icon(Icons.shopping_cart_outlined),
+              child: const Icon(Icons.receipt_long_outlined),
             ),
             selectedIcon: Badge(
               isLabelVisible: cartCount > 0,
               label: Text('$cartCount'),
-              child: const Icon(Icons.shopping_cart_rounded),
+              child: const Icon(Icons.receipt_long_rounded),
             ),
-            label: 'Carrito',
+            label: 'Recibos/Pago',
           ),
           const NavigationDestination(
             icon: Icon(Icons.support_agent_outlined),
             selectedIcon: Icon(Icons.support_agent_rounded),
-            label: 'Asistente',
+            label: 'Agente IA',
           ),
           const NavigationDestination(
             icon: Icon(Icons.person_outline),
@@ -152,7 +164,7 @@ class _ClientHomePageState extends State<ClientHomePage> {
   }
 }
 
-// ── 1. MARKETPLACE DE MUEBLES DISPONIBLES A LA VENTA ────────────────────────
+// ── 1. TIENDA / CATÁLOGO DEL PORTAL CLIENTE ─────────────────────────────────
 
 class _MarketplaceTab extends StatelessWidget {
   final ValueChanged<ProductEntity> onQuoteProduct;
@@ -183,7 +195,6 @@ class _MarketplaceTab extends StatelessWidget {
 
     return Column(
       children: [
-        // Banner y buscador de tienda
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -195,10 +206,10 @@ class _MarketplaceTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Muebles en Madera Certificada',
+                'Muebles en Madera Certificada (Catálogo Web)',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 15,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -219,8 +230,6 @@ class _MarketplaceTab extends StatelessWidget {
             ],
           ),
         ),
-
-        // Categorías
         SizedBox(
           height: 50,
           child: ListView.separated(
@@ -244,8 +253,6 @@ class _MarketplaceTab extends StatelessWidget {
             },
           ),
         ),
-
-        // Catálogo disponible (solo stock > 0)
         Expanded(
           child: products.isEmpty
               ? const Center(
@@ -267,8 +274,8 @@ class _MarketplaceTab extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
-                                  width: 62,
-                                  height: 62,
+                                  width: 60,
+                                  height: 60,
                                   decoration: BoxDecoration(
                                     color: AppTheme.primaryWood
                                         .withValues(alpha: 0.12),
@@ -277,13 +284,14 @@ class _MarketplaceTab extends StatelessWidget {
                                   child: Icon(
                                     _mapIcon(item.iconName),
                                     color: AppTheme.primaryWood,
-                                    size: 34,
+                                    size: 32,
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         mainAxisAlignment:
@@ -308,49 +316,26 @@ class _MarketplaceTab extends StatelessWidget {
                                               ),
                                             ),
                                           ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.green.shade50,
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              border: Border.all(
-                                                color: Colors.green.shade300,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              'Disponible (${item.stock} u.)',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.green.shade800,
-                                              ),
+                                          Text(
+                                            '~${item.estimatedDays} días',
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color: Colors.black54,
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 5),
+                                      const SizedBox(height: 4),
                                       Text(
                                         item.name,
                                         style: const TextStyle(
-                                          fontSize: 16,
+                                          fontSize: 15.5,
                                           fontWeight: FontWeight.bold,
                                           color: AppTheme.primaryDarkWood,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
                                       Text(
-                                        'Madera: ${item.woodType}',
-                                        style: const TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Medidas: ${item.dimensions}',
+                                        'Madera: ${item.woodType} • ${item.dimensions}',
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Colors.black54,
@@ -361,15 +346,15 @@ class _MarketplaceTab extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             Text(
                               item.description,
                               style: const TextStyle(
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 color: Colors.black54,
                               ),
                             ),
-                            const Divider(height: 22),
+                            const Divider(height: 20),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -377,7 +362,7 @@ class _MarketplaceTab extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Text(
-                                      'Precio de Venta',
+                                      'Precio referencia',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.black54,
@@ -386,7 +371,7 @@ class _MarketplaceTab extends StatelessWidget {
                                     Text(
                                       'Bs ${item.price.toStringAsFixed(0)}',
                                       style: const TextStyle(
-                                        fontSize: 19,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: AppTheme.primaryWood,
                                       ),
@@ -395,27 +380,21 @@ class _MarketplaceTab extends StatelessWidget {
                                 ),
                                 Row(
                                   children: [
-                                    OutlinedButton(
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 8,
-                                        ),
-                                      ),
+                                    OutlinedButton.icon(
                                       onPressed: () => onQuoteProduct(item),
-                                      child: const Text(
-                                        'Cotizar a Medida',
-                                        style: TextStyle(fontSize: 12.5),
+                                      icon: const Icon(
+                                        Icons.auto_awesome,
+                                        size: 15,
+                                      ),
+                                      label: const Text(
+                                        'Cotizar IA',
+                                        style: TextStyle(fontSize: 12),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     FilledButton.icon(
                                       style: FilledButton.styleFrom(
                                         backgroundColor: AppTheme.primaryWood,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
                                       ),
                                       onPressed: () {
                                         provider.addToCart(item);
@@ -432,11 +411,11 @@ class _MarketplaceTab extends StatelessWidget {
                                       },
                                       icon: const Icon(
                                         Icons.add_shopping_cart_rounded,
-                                        size: 17,
+                                        size: 16,
                                       ),
                                       label: const Text(
-                                        'Al Carrito',
-                                        style: TextStyle(fontSize: 12.5),
+                                        'Comprar',
+                                        style: TextStyle(fontSize: 12),
                                       ),
                                     ),
                                   ],
@@ -455,7 +434,7 @@ class _MarketplaceTab extends StatelessWidget {
   }
 }
 
-// ── 2. SECCIÓN DE COTIZACIONES A MEDIDA Y MIS PEDIDOS ──────────────────────
+// ── 2. COTIZAR CON IA (3 PASOS CU3) + NEGOCIACIÓN + MIS COTIZACIONES ────────
 
 class _QuotationsTab extends StatefulWidget {
   final ProductEntity? preselectedProduct;
@@ -471,12 +450,22 @@ class _QuotationsTab extends StatefulWidget {
 }
 
 class _QuotationsTabState extends State<_QuotationsTab> {
-  final _formKey = GlobalKey<FormState>();
-  final _furnitureCtrl = TextEditingController();
-  final _dimensionsCtrl = TextEditingController();
-  final _detailsCtrl = TextEditingController();
-  final _budgetCtrl = TextEditingController();
-  String _selectedWood = 'Roble Macizo';
+  final _descCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController(
+    text: 'Av. Cristo Redentor 4to Anillo, Santa Cruz',
+  );
+  final _latCtrl = TextEditingController(text: '-17.7540');
+  final _lngCtrl = TextEditingController(text: '-63.1790');
+
+  String _selectedWood = 'Roble';
+  String _deliveryType = 'DELIVERY'; // 'DELIVERY' | 'PICKUP'
+  bool _hasAttachedReferencePhoto = false;
+  bool _isEstimating = false;
+  AiEstimateEntity? _aiEstimate;
+
+  // Placeholder 1x1 JPEG base64 cuando el usuario adjunta foto de referencia para YOLOv8/OCR
+  static const String _sampleReferenceBase64 =
+      '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
 
   @override
   void didUpdateWidget(covariant _QuotationsTab oldWidget) {
@@ -484,54 +473,150 @@ class _QuotationsTabState extends State<_QuotationsTab> {
     if (widget.preselectedProduct != null &&
         widget.preselectedProduct != oldWidget.preselectedProduct) {
       final p = widget.preselectedProduct!;
-      _furnitureCtrl.text = 'Cotización a medida: ${p.name}';
-      _dimensionsCtrl.text = p.dimensions;
-      _budgetCtrl.text = p.price.toStringAsFixed(0);
+      setState(() {
+        _descCtrl.text =
+            '${p.name} de medidas ${p.dimensions} con acabado fino.';
+        _selectedWood = p.woodType.split(' ').first;
+        _aiEstimate = null;
+      });
     }
   }
 
   @override
   void dispose() {
-    _furnitureCtrl.dispose();
-    _dimensionsCtrl.dispose();
-    _detailsCtrl.dispose();
-    _budgetCtrl.dispose();
+    _descCtrl.dispose();
+    _addressCtrl.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _submitQuote() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _calculateAiEstimate() async {
+    if (_descCtrl.text.trim().length < 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Describe primero el mueble y sus medidas en el Paso 1'),
+        ),
+      );
+      return;
+    }
+    setState(() => _isEstimating = true);
+    final provider = AppScope.of(context);
+    final est = await provider.estimateFurniture(
+      description: _descCtrl.text.trim(),
+      woodType: _selectedWood,
+      imageBase64: _hasAttachedReferencePhoto ? _sampleReferenceBase64 : null,
+    );
+    if (!mounted) return;
+    setState(() {
+      _aiEstimate = est;
+      _isEstimating = false;
+    });
+  }
+
+  Future<void> _submitQuotation() async {
+    if (_descCtrl.text.trim().isEmpty) return;
     final provider = AppScope.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final clientName = provider.currentUser?.name ?? 'Cliente';
-    final estBudget = double.tryParse(_budgetCtrl.text) ?? 1500.0;
 
-    final estDate = DateTime.now().add(const Duration(days: 14));
-    final dateStr =
-        '${estDate.day.toString().padLeft(2, '0')}/${estDate.month.toString().padLeft(2, '0')}/${estDate.year}';
+    if (_aiEstimate == null) {
+      await _calculateAiEstimate();
+    }
+    if (!mounted) return;
 
-    await provider.createOrder(
-      clientName: clientName,
-      productName: _furnitureCtrl.text.trim(),
+    final price = _aiEstimate?.estimatedPrice ?? 1850.0;
+    final created = await provider.createQuotation(
+      description: _descCtrl.text.trim(),
       woodType: _selectedWood,
-      specifications:
-          'Medidas: ${_dimensionsCtrl.text.trim()} | Detalles: ${_detailsCtrl.text.trim()}',
-      totalAmount: estBudget,
-      advancePayment: 0.0,
-      deliveryDate: dateStr,
+      estimatedPrice: price,
+      aiEstimate: _aiEstimate,
+      deliveryType: _deliveryType,
+      deliveryAddress: _deliveryType == 'DELIVERY'
+          ? _addressCtrl.text.trim()
+          : 'Recojo en taller',
+      latitude: _deliveryType == 'DELIVERY'
+          ? double.tryParse(_latCtrl.text)
+          : null,
+      longitude: _deliveryType == 'DELIVERY'
+          ? double.tryParse(_lngCtrl.text)
+          : null,
     );
 
-    _furnitureCtrl.clear();
-    _dimensionsCtrl.clear();
-    _detailsCtrl.clear();
-    _budgetCtrl.clear();
-    widget.onClearPreselected();
-
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text(
-          '¡Cotización enviada! Puedes ver su estado en Mis Solicitudes abajo.',
+    if (created != null) {
+      setState(() {
+        _descCtrl.clear();
+        _aiEstimate = null;
+        _hasAttachedReferencePhoto = false;
+      });
+      widget.onClearPreselected();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '¡Cotización #${created.id.substring(0, created.id.length.clamp(0, 8))} enviada al taller!',
+          ),
+          backgroundColor: Colors.green.shade700,
         ),
+      );
+    }
+  }
+
+  void _showCounterOfferDialog(QuotationEntity q) {
+    final amountCtrl = TextEditingController(
+      text: (q.payableAmount * 0.9).toStringAsFixed(0),
+    );
+    final msgCtrl = TextEditingController(
+      text: '¿Podrían dejarlo en este monto si pago al contado hoy?',
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Proponer Contraoferta (CU3)'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Precio cotizado por el taller: Bs ${q.payableAmount.toStringAsFixed(0)}',
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Tu monto propuesto (Bs)',
+                prefixIcon: Icon(Icons.payments_outlined),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: msgCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Mensaje para el carpintero',
+                prefixIcon: Icon(Icons.chat_bubble_outline),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final provider = AppScope.of(context);
+              await provider.respondQuotation(
+                id: q.id,
+                action: 'counter',
+                counterAmount: double.tryParse(amountCtrl.text) ?? q.payableAmount,
+                message: msgCtrl.text.trim(),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Enviar Contraoferta'),
+          ),
+        ],
       ),
     );
   }
@@ -539,163 +624,322 @@ class _QuotationsTabState extends State<_QuotationsTab> {
   @override
   Widget build(BuildContext context) {
     final provider = AppScope.of(context);
-    final myOrders = provider.clientOrders;
+    final quotations = provider.quotations;
+    final woods = const ['Roble', 'Cedro', 'Mara', 'Pino', 'Melamina'];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Formulario de nueva cotización
+          // ── Asistente de Cotización IA en 3 pasos (CU3) ────────────────────
           Card(
-            elevation: 2,
+            elevation: 3,
             child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.architecture_rounded,
-                          color: AppTheme.primaryWood,
-                        ),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Solicitar Cotización de Mueble a Medida',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryDarkWood,
-                            ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: AppTheme.primaryWood),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Cotizar Mueble con Inteligencia Artificial (CU3)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryDarkWood,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Indícanos qué mueble deseas fabricar, el tipo de madera y tus medidas personalizadas.',
-                      style: TextStyle(fontSize: 12.5, color: Colors.black54),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _furnitureCtrl,
-                      decoration: const InputDecoration(
-                        labelText: '¿Qué mueble deseas cotizar?',
-                        hintText: 'Ej: Ropero empotrado 3 puertas, Mesa...',
-                        prefixIcon: Icon(Icons.chair_outlined),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Describe el mueble'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedWood,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de Madera preferida',
-                        prefixIcon: Icon(Icons.forest_outlined),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '1) Describe tu mueble • 2) Elige madera y foto • 3) Obtén precio IA y modalidad de entrega',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Ejemplos rápidos
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      ActionChip(
+                        label: const Text(
+                          'Mesa comedor 6p (200x100cm)',
+                          style: TextStyle(fontSize: 11.5),
+                        ),
+                        onPressed: () => setState(() {
+                          _descCtrl.text =
+                              'Mesa de comedor para 6 personas de 200x100x76 cm con acabado mate.';
+                        }),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Roble Macizo',
-                          child: Text('Roble Macizo (Alta durabilidad)'),
+                      ActionChip(
+                        label: const Text(
+                          'Ropero 3 puertas (220x60x235cm)',
+                          style: TextStyle(fontSize: 11.5),
                         ),
-                        DropdownMenuItem(
-                          value: 'Cedro Seleccionado',
-                          child: Text('Cedro Seleccionado (Fino acabado)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Tajibo / Exterior',
-                          child: Text('Tajibo (Ideal para puertas y exterior)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Melamina RH 18mm',
-                          child: Text('Melamina RH Hidrófuga 18mm (Moderna)'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setState(() => _selectedWood = v);
-                      },
+                        onPressed: () => setState(() {
+                          _descCtrl.text =
+                              'Ropero empotrado de 3 puertas corredizas de 220x60x235 cm con cajonera.';
+                        }),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  TextField(
+                    controller: _descCtrl,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Paso 1: Describe el mueble y sus medidas',
+                      hintText:
+                          'Ej: Escritorio en L de 160x120x75 cm con 3 cajones...',
+                      prefixIcon: Icon(Icons.straighten_rounded),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  const Text(
+                    'Paso 2: Selecciona la madera y adjunta diseño/plano (opcional):',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryDarkWood,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    children: woods.map((w) {
+                      final selected = _selectedWood == w;
+                      return ChoiceChip(
+                        label: Text(w),
+                        selected: selected,
+                        selectedColor: AppTheme.primaryWood,
+                        labelStyle: TextStyle(
+                          color: selected ? Colors.white : Colors.black87,
+                          fontSize: 12,
+                        ),
+                        onSelected: (_) => setState(() => _selectedWood = w),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _hasAttachedReferencePhoto =
+                                  !_hasAttachedReferencePhoto;
+                            });
+                          },
+                          icon: Icon(
+                            _hasAttachedReferencePhoto
+                                ? Icons.check_circle_rounded
+                                : Icons.add_a_photo_outlined,
+                            color: _hasAttachedReferencePhoto
+                                ? Colors.green.shade700
+                                : AppTheme.primaryWood,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _hasAttachedReferencePhoto
+                                ? 'Foto de referencia lista (YOLOv8/OCR)'
+                                : 'Adjuntar Foto / Plano de Referencia',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.tonalIcon(
+                        onPressed: _isEstimating ? null : _calculateAiEstimate,
+                        icon: _isEstimating
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.calculate_outlined, size: 18),
+                        label: const Text('Estimar con IA'),
+                      ),
+                    ],
+                  ),
+
+                  if (_aiEstimate != null) ...[
                     const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'IA detectó: ${_aiEstimate!.furnitureType.toUpperCase()}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryDarkWood,
+                                  ),
+                                ),
+                                Text(
+                                  'Confianza ML: ${(_aiEstimate!.confidence * 100).toStringAsFixed(0)}% • Madera: $_selectedWood',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            'Bs ${_aiEstimate!.estimatedPrice.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryWood,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Paso 3: ¿Cómo prefieres recibir tu mueble?',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryDarkWood,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Text('Envío a domicilio'),
+                          selected: _deliveryType == 'DELIVERY',
+                          selectedColor: AppTheme.primaryWood,
+                          labelStyle: TextStyle(
+                            color: _deliveryType == 'DELIVERY'
+                                ? Colors.white
+                                : Colors.black87,
+                          ),
+                          onSelected: (_) =>
+                              setState(() => _deliveryType = 'DELIVERY'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Text('Recojo en taller'),
+                          selected: _deliveryType == 'PICKUP',
+                          selectedColor: AppTheme.primaryWood,
+                          labelStyle: TextStyle(
+                            color: _deliveryType == 'PICKUP'
+                                ? Colors.white
+                                : Colors.black87,
+                          ),
+                          onSelected: (_) =>
+                              setState(() => _deliveryType = 'PICKUP'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_deliveryType == 'DELIVERY') ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _addressCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Dirección de entrega',
+                        prefixIcon: Icon(Icons.location_on_outlined),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
-                          child: TextFormField(
-                            controller: _dimensionsCtrl,
+                          child: TextField(
+                            controller: _latCtrl,
+                            keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
-                              labelText: 'Medidas aprox. (cm)',
-                              hintText: 'Ej: 200 x 90 x 75 cm',
-                              prefixIcon: Icon(Icons.straighten_rounded),
+                              labelText: 'Latitud GPS',
+                              isDense: true,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: TextFormField(
-                            controller: _budgetCtrl,
+                          child: TextField(
+                            controller: _lngCtrl,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
-                              labelText: 'Presupuesto (Bs)',
-                              hintText: 'Ej: 2500',
-                              prefixIcon: Icon(Icons.payments_outlined),
+                              labelText: 'Longitud GPS',
+                              isDense: true,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _detailsCtrl,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Color de barniz, divisiones o detalles extra',
-                        prefixIcon: Icon(Icons.notes_rounded),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    ElevatedButton.icon(
-                      onPressed: _submitQuote,
-                      icon: const Icon(Icons.send_rounded),
-                      label: const Text('Enviar Solicitud de Cotización'),
-                    ),
                   ],
-                ),
+                  const SizedBox(height: 14),
+                  ElevatedButton.icon(
+                    onPressed: _submitQuotation,
+                    icon: const Icon(Icons.send_rounded),
+                    label: const Text('Enviar Solicitud al Taller'),
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 20),
 
-          // Historial de pedidos y cotizaciones del propio cliente
+          // ── Lista de Cotizaciones y Negociación (CU3 + CU6) ─────────────────
           const Text(
-            'Mis Pedidos y Cotizaciones',
+            'Mis Cotizaciones y Seguimiento de Negociación',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: AppTheme.primaryDarkWood,
             ),
           ),
-          const SizedBox(height: 10),
-          if (myOrders.isEmpty)
+          const SizedBox(height: 8),
+          if (quotations.isEmpty)
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(20),
                 child: Text(
-                  'Aún no tienes pedidos ni cotizaciones registradas con tu cuenta.',
+                  'Aún no tienes cotizaciones registradas.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.black54),
                 ),
               ),
             )
           else
-            ...myOrders.map((order) {
-              final balance = order.totalAmount - order.advancePayment;
+            ...quotations.map((q) {
+              final statusUpper = q.status.toUpperCase();
+              final isQuoted = statusUpper == 'QUOTED';
+              final isApproved = statusUpper == 'APPROVED';
+              final isConverted = statusUpper == 'CONVERTED';
+
               return Card(
-                margin: const EdgeInsets.only(bottom: 10),
+                margin: const EdgeInsets.only(bottom: 12),
                 child: Padding(
                   padding: const EdgeInsets.all(14),
                   child: Column(
@@ -705,47 +949,77 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Código: ${order.id}',
+                            'Cotización #${q.id.substring(0, q.id.length.clamp(0, 8))}',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.black54,
                             ),
                           ),
-                          Chip(
-                            label: Text(
-                              order.status,
-                              style: const TextStyle(
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isConverted
+                                  ? Colors.green.shade100
+                                  : (isQuoted || isApproved
+                                      ? Colors.blue.shade100
+                                      : Colors.amber.shade100),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              q.statusLabel,
+                              style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
+                                color: isConverted
+                                    ? Colors.green.shade900
+                                    : Colors.brown.shade900,
                               ),
                             ),
-                            visualDensity: VisualDensity.compact,
-                            backgroundColor: Colors.amber.shade100,
                           ),
                         ],
                       ),
+                      const SizedBox(height: 6),
                       Text(
-                        order.productName,
+                        q.description,
                         style: const TextStyle(
-                          fontSize: 15.5,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primaryDarkWood,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Madera: ${order.woodType} • Entrega est.: ${order.deliveryDate}',
-                        style: const TextStyle(fontSize: 12.5),
+                        'Madera: ${q.woodType} • Entrega: ${q.deliveryType == "PICKUP" ? "Recojo en taller" : q.deliveryAddress}',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: Colors.black87,
+                        ),
                       ),
-                      if (order.specifications.isNotEmpty)
+                      if (q.notes != null && q.notes!.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            order.specifications,
-                            style: const TextStyle(
+                            'Nota del taller: ${q.notes}',
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Colors.black54,
+                              color: Colors.blueGrey.shade800,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      if (q.counterAmount != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Tu contraoferta enviada: Bs ${q.counterAmount!.toStringAsFixed(0)} (${q.clientMessage ?? ""})',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange.shade900,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -753,23 +1027,92 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Total: Bs ${order.totalAmount.toStringAsFixed(0)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                q.finalAmount != null
+                                    ? 'Precio Formal del Taller'
+                                    : 'Estimación IA',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                              Text(
+                                'Bs ${q.payableAmount.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryWood,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            'Adelanto: Bs ${order.advancePayment.toStringAsFixed(0)}',
-                            style: TextStyle(color: Colors.green.shade700),
-                          ),
-                          Text(
-                            'Saldo: Bs ${balance.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: balance > 0
-                                  ? Colors.red.shade700
-                                  : Colors.grey,
+                          if (isQuoted)
+                            Wrap(
+                              spacing: 6,
+                              children: [
+                                OutlinedButton(
+                                  onPressed: () => _showCounterOfferDialog(q),
+                                  child: const Text(
+                                    'Contraoferta',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.green.shade700,
+                                  ),
+                                  onPressed: () async {
+                                    await provider.respondQuotation(
+                                      id: q.id,
+                                      action: 'accept',
+                                    );
+                                    if (!context.mounted) return;
+                                    await PaymentAndInvoiceModals
+                                        .showPaymentGatewayModal(
+                                      context,
+                                      quotationId: q.id,
+                                      description: q.description,
+                                      amount: q.payableAmount,
+                                    );
+                                  },
+                                  icon: const Icon(Icons.payment, size: 16),
+                                  label: const Text(
+                                    'Aceptar y Pagar',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else if (isApproved)
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppTheme.primaryWood,
+                              ),
+                              onPressed: () =>
+                                  PaymentAndInvoiceModals.showPaymentGatewayModal(
+                                context,
+                                quotationId: q.id,
+                                description: q.description,
+                                amount: q.payableAmount,
+                              ),
+                              icon: const Icon(Icons.credit_card, size: 16),
+                              label: const Text('Pagar con Tarjeta (CU6)'),
+                            )
+                          else if (isConverted)
+                            const Chip(
+                              avatar: Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                                size: 16,
+                              ),
+                              label: Text(
+                                'Pagada • En Taller',
+                                style: TextStyle(fontSize: 11.5),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ],
@@ -783,19 +1126,22 @@ class _QuotationsTabState extends State<_QuotationsTab> {
   }
 }
 
-// ── 3. CARRITO DE COMPRAS DEL CLIENTE ───────────────────────────────────────
+// ── 3. MIS RECIBOS / FACTURAS PDF (CU5) Y CARRITO DE COMPRAS ────────────────
 
-class _CartTab extends StatefulWidget {
+class _CartAndInvoicesTab extends StatefulWidget {
   final VoidCallback onOrderCompleted;
 
-  const _CartTab({required this.onOrderCompleted});
+  const _CartAndInvoicesTab({required this.onOrderCompleted});
 
   @override
-  State<_CartTab> createState() => _CartTabState();
+  State<_CartAndInvoicesTab> createState() => _CartAndInvoicesTabState();
 }
 
-class _CartTabState extends State<_CartTab> {
-  final _notesCtrl = TextEditingController();
+class _CartAndInvoicesTabState extends State<_CartAndInvoicesTab> {
+  final _notesCtrl = TextEditingController(
+    text: 'Av. Cristo Redentor 4to Anillo, Santa Cruz',
+  );
+  String _deliveryType = 'DELIVERY';
 
   @override
   void dispose() {
@@ -808,204 +1154,212 @@ class _CartTabState extends State<_CartTab> {
     final provider = AppScope.of(context);
     final items = provider.cartItems;
     final total = provider.cartTotal;
+    final invoices = provider.invoices;
 
-    if (items.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.remove_shopping_cart_outlined,
-                size: 64,
-                color: Colors.black38,
-              ),
-              SizedBox(height: 12),
-              Text(
-                'Tu carrito está vacío',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryDarkWood,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Sección Carrito ─────────────────────────────────────────────────
+          const Text(
+            'Mi Carrito de Compras',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryDarkWood,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (items.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Text(
+                  'Tu carrito está vacío. Agrega muebles desde la pestaña "Tienda".',
+                  style: TextStyle(color: Colors.black54),
                 ),
               ),
-              SizedBox(height: 6),
-              Text(
-                'Explora el Marketplace en la pestaña "Tienda" y agrega los muebles que desees comprar.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final cartItem = items[index];
+            )
+          else ...[
+            ...items.map((cartItem) {
               final product = cartItem.product;
               return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  title: Text(
+                    product.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14.5,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${product.woodType} • Subtotal: Bs ${cartItem.subtotal.toStringAsFixed(0)}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              product.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: AppTheme.primaryDarkWood,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${product.woodType} • Bs ${product.price.toStringAsFixed(0)} c/u',
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Subtotal: Bs ${cartItem.subtotal.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryWood,
-                              ),
-                            ),
-                          ],
+                      IconButton(
+                        onPressed: () => provider.updateCartQuantity(
+                          product.id,
+                          cartItem.quantity - 1,
                         ),
+                        icon: const Icon(Icons.remove_circle_outline),
                       ),
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: () => provider.updateCartQuantity(
-                              product.id,
-                              cartItem.quantity - 1,
-                            ),
-                            icon: const Icon(Icons.remove_circle_outline),
-                          ),
-                          Text(
-                            '${cartItem.quantity}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: cartItem.quantity < product.stock
-                                ? () => provider.updateCartQuantity(
-                                      product.id,
-                                      cartItem.quantity + 1,
-                                    )
-                                : null,
-                            icon: const Icon(Icons.add_circle_outline),
-                          ),
-                          IconButton(
-                            tooltip: 'Quitar',
-                            onPressed: () => provider.removeFromCart(product.id),
-                            icon: Icon(
-                              Icons.delete_outline,
-                              color: Colors.red.shade700,
-                            ),
-                          ),
-                        ],
+                      Text('${cartItem.quantity}'),
+                      IconButton(
+                        onPressed: () => provider.updateCartQuantity(
+                          product.id,
+                          cartItem.quantity + 1,
+                        ),
+                        icon: const Icon(Icons.add_circle_outline),
                       ),
                     ],
                   ),
                 ),
               );
-            },
-          ),
-        ),
-
-        // Resumen y confirmación de pedido
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 12,
-                offset: const Offset(0, -4),
-              ),
-            ],
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _notesCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Dirección de entrega o instrucciones adicionales',
-                  prefixIcon: Icon(Icons.local_shipping_outlined),
-                  isDense: true,
+            }),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Envío a domicilio'),
+                          selected: _deliveryType == 'DELIVERY',
+                          onSelected: (_) =>
+                              setState(() => _deliveryType = 'DELIVERY'),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('Recojo en taller'),
+                          selected: _deliveryType == 'PICKUP',
+                          onSelected: (_) =>
+                              setState(() => _deliveryType = 'PICKUP'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _notesCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Dirección o instrucciones de entrega',
+                        prefixIcon: Icon(Icons.local_shipping_outlined),
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Total Carrito:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Bs ${total.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryWood,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final ok = await provider.checkoutCart(
+                          advancePayment: total,
+                          deliveryNotes: _notesCtrl.text.trim(),
+                          deliveryType: _deliveryType,
+                          deliveryAddress: _notesCtrl.text.trim(),
+                        );
+                        if (ok && context.mounted) {
+                          widget.onOrderCompleted();
+                        }
+                      },
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('Confirmar Solicitud de Compra'),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Total a Pagar:',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    'Bs ${total.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryDarkWood,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  final ok = await provider.checkoutCart(
-                    advancePayment: total * 0.5,
-                    deliveryNotes: _notesCtrl.text.trim(),
-                  );
-                  if (ok) {
-                    _notesCtrl.clear();
-                    widget.onOrderCompleted();
-                    messenger.showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          '¡Compra confirmada! Puedes hacer seguimiento en "Cotizar / Mis Pedidos".',
-                        ),
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Confirmar Pedido de Compra'),
+            ),
+          ],
+
+          const SizedBox(height: 22),
+
+          // ── Sección Mis Recibos / Facturas PDF (CU5) ────────────────────────
+          const Row(
+            children: [
+              Icon(Icons.picture_as_pdf_rounded, color: AppTheme.primaryWood),
+              SizedBox(width: 8),
+              Text(
+                'Mis Recibos y Facturas Oficiales (CU5)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryDarkWood,
+                ),
               ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          if (invoices.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Text(
+                  'Aún no tienes facturas emitidas. Al pagar una cotización aprobada, el recibo PDF aparecerá aquí.',
+                  style: TextStyle(color: Colors.black54),
+                ),
+              ),
+            )
+          else
+            ...invoices.map(
+              (inv) => Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.red.shade50,
+                    child: Icon(
+                      Icons.picture_as_pdf,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                  title: Text(
+                    'Factura ${inv.series}-${inv.number} • Bs ${inv.total.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Cliente: ${inv.clientName} (NIT: ${inv.clientNit})\nFecha: ${inv.issuedAt}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  isThreeLine: true,
+                  trailing: FilledButton.tonalIcon(
+                    onPressed: () =>
+                        PaymentAndInvoiceModals.previewInvoicePdf(context, inv),
+                    icon: const Icon(Icons.download_rounded, size: 16),
+                    label: const Text('PDF'),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
-// ── 4. ASISTENTE DE IA PARA CLIENTES (SIN INFORMES NI DATOS SENSIBLES) ──────
+// ── 4. AGENTE IA PARA CLIENTES (ONLINE MCP /api/ai/agent + OFFLINE QWEN3) ───
 
 class _ClientAssistantTab extends StatefulWidget {
   const _ClientAssistantTab();
@@ -1019,13 +1373,14 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
   final _whisperService = WhisperService();
   final _llmService = LlmService();
 
+  bool _useOnlineAgent = true;
   bool _isRecording = false;
   bool _isThinking = false;
   final List<Map<String, String>> _messages = [
     {
       'sender': 'bot',
       'text':
-          '¡Hola! Soy el Asistente Virtual de Carpintería El Roble. Puedo ayudarte a consultar el estado de tus pedidos, precios de muebles disponibles o recomendarte la mejor madera para tu hogar.',
+          '¡Hola! Soy el Agente IA de Carpintería El Roble (CU7). En modo Online me conecto a Backend3-Python-IA-MCP (/api/ai/agent) para consultar tus pedidos reales, cotizaciones, disponibilidad de entregas y catálogo.',
     },
   ];
 
@@ -1048,6 +1403,28 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
       _messages.add({'sender': 'user', 'text': text});
       _isThinking = true;
     });
+
+    if (_useOnlineAgent) {
+      try {
+        final res = await provider.askOnlineAgent(
+          query: text,
+          sessionId: 'mobile-client-${provider.currentUser?.email ?? "demo"}',
+        );
+        if (!mounted) return;
+        final toolBadge =
+            res.tool != null ? '\n\n[Herramienta MCP: ${res.tool}]' : '';
+        setState(() {
+          _messages.add({
+            'sender': 'bot',
+            'text': '${res.answer}$toolBadge',
+          });
+          _isThinking = false;
+        });
+        return;
+      } catch (_) {
+        // Fallback automático a IA en dispositivo si no hay conexión
+      }
+    }
 
     try {
       if (ModelInstaller.isReady && !_llmService.isLoaded) {
@@ -1112,24 +1489,30 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Barra informativa de privacidad del cliente
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           color: AppTheme.primaryDarkWood,
           child: Row(
             children: [
-              const Icon(
-                Icons.lock_person_rounded,
+              Icon(
+                _useOnlineAgent ? Icons.cloud_done_rounded : Icons.memory_rounded,
                 color: AppTheme.accentAmber,
                 size: 18,
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Asistente de Cliente: Consulta tus pedidos y catálogo en venta.',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+                  _useOnlineAgent
+                      ? 'Modo Online: Agente IA MCP (/api/ai/agent)'
+                      : 'Modo Offline: Qwen3 1.7B Local en Dispositivo',
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
+              ),
+              Switch(
+                value: _useOnlineAgent,
+                activeThumbColor: AppTheme.accentAmber,
+                onChanged: (v) => setState(() => _useOnlineAgent = v),
               ),
               if (!ModelInstaller.isReady)
                 TextButton(
@@ -1139,10 +1522,10 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
                     );
                   },
                   child: const Text(
-                    'Activar Voz IA',
+                    'Modelos Voz',
                     style: TextStyle(
                       color: AppTheme.accentAmber,
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1150,8 +1533,6 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
             ],
           ),
         ),
-
-        // Sugerencias rápidas para el cliente
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1163,35 +1544,33 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
                   '¿En qué estado están mis pedidos?',
                   style: TextStyle(fontSize: 12),
                 ),
-                onPressed: () =>
-                    _sendQuestion('¿En qué estado están mis pedidos y cuánto debo?'),
+                onPressed: () => _sendQuestion('¿En qué estado están mis pedidos?'),
               ),
               const SizedBox(width: 8),
               ActionChip(
-                avatar: const Icon(Icons.chair_outlined, size: 16),
+                avatar: const Icon(Icons.event_available_outlined, size: 16),
                 label: const Text(
-                  '¿Qué muebles tienen disponibles?',
-                  style: TextStyle(fontSize: 12),
-                ),
-                onPressed: () =>
-                    _sendQuestion('¿Qué muebles tienen disponibles a la venta y sus precios?'),
-              ),
-              const SizedBox(width: 8),
-              ActionChip(
-                avatar: const Icon(Icons.forest_outlined, size: 16),
-                label: const Text(
-                  '¿Cómo cuidar madera de roble?',
+                  '¿Hay cupo de entrega mañana?',
                   style: TextStyle(fontSize: 12),
                 ),
                 onPressed: () => _sendQuestion(
-                  '¿Qué cuidados me recomiendas para limpiar mi mesa de madera roble?',
+                  '¿Tienen disponibilidad para programar entrega mañana?',
+                ),
+              ),
+              const SizedBox(width: 8),
+              ActionChip(
+                avatar: const Icon(Icons.calculate_outlined, size: 16),
+                label: const Text(
+                  '¿Cuánto cuesta una mesa de roble?',
+                  style: TextStyle(fontSize: 12),
+                ),
+                onPressed: () => _sendQuestion(
+                  '¿Cuánto cuesta aproximadamente una mesa de comedor en madera roble?',
                 ),
               ),
             ],
           ),
         ),
-
-        // Historial de mensajes
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1235,40 +1614,22 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
                       ),
                     ],
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (isSecurity) ...[
-                        Icon(
-                          Icons.gpp_bad_rounded,
-                          color: Colors.red.shade700,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Flexible(
-                        child: Text(
-                          msg['text'] ?? '',
-                          style: TextStyle(
-                            color: isUser
-                                ? Colors.white
-                                : (isSecurity
-                                    ? Colors.red.shade900
-                                    : Colors.black87),
-                            fontSize: 13.5,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    msg['text'] ?? '',
+                    style: TextStyle(
+                      color: isUser
+                          ? Colors.white
+                          : (isSecurity
+                              ? Colors.red.shade900
+                              : Colors.black87),
+                      fontSize: 13.5,
+                    ),
                   ),
                 ),
               );
             },
           ),
         ),
-
-        // Barra inferior de escritura y micrófono
         Container(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
           color: Colors.white,
@@ -1292,7 +1653,7 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
                   controller: _controller,
                   onSubmitted: (_) => _sendQuestion(),
                   decoration: const InputDecoration(
-                    hintText: 'Pregunta por tu pedido o por un mueble...',
+                    hintText: 'Pregunta al Agente IA por tu pedido o mueble...',
                     isDense: true,
                   ),
                 ),
@@ -1394,7 +1755,7 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Cuenta Cliente Marketplace',
+                            'Rol: ${(user?.role ?? "CLIENT").toUpperCase()}',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -1417,7 +1778,7 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Servidor Backend API',
+                    'Servidor API Gateway (Backend2 NestJS :3000)',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: AppTheme.primaryDarkWood,
@@ -1438,9 +1799,12 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
                       onPressed: () async {
                         final messenger = ScaffoldMessenger.of(context);
                         await provider.updateBackendUrl(_urlController.text);
+                        _urlController.text = AppConfig.baseUrl;
                         messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Dirección del servidor actualizada'),
+                          SnackBar(
+                            content: Text(
+                              'Gateway actualizado: ${AppConfig.baseUrl}',
+                            ),
                           ),
                         );
                       },
