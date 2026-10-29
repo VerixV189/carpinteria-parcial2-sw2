@@ -1555,6 +1555,135 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
     );
   }
 
+  void _showProductDialog(BuildContext context, {ProductEntity? existing}) {
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final dimCtrl =
+        TextEditingController(text: existing?.dimensions ?? '180 x 90 x 76 cm');
+    final priceCtrl = TextEditingController(
+      text: (existing?.price ?? 1800).toStringAsFixed(0),
+    );
+    final stockCtrl =
+        TextEditingController(text: (existing?.stock ?? 3).toString());
+    final daysCtrl =
+        TextEditingController(text: (existing?.estimatedDays ?? 10).toString());
+    final descCtrl = TextEditingController(text: existing?.description ?? '');
+    final imgCtrl = TextEditingController(text: existing?.imageUrl ?? '');
+    const categories = ['Mesas', 'Sillas', 'Roperos', 'Puertas', 'Cocina'];
+    const woods = ['Roble', 'Mara', 'Cedro', 'Pino', 'Melamina'];
+    String category = categories.contains(existing?.category)
+        ? existing!.category
+        : 'Mesas';
+    String wood =
+        woods.contains(existing?.woodType) ? existing!.woodType : 'Roble';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(existing == null ? 'Publicar Mueble' : 'Editar Mueble'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: category,
+                decoration: const InputDecoration(labelText: 'Categoría'),
+                items: categories
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => category = v ?? category,
+              ),
+              DropdownButtonFormField<String>(
+                initialValue: wood,
+                decoration: const InputDecoration(labelText: 'Madera'),
+                items: woods
+                    .map((w) => DropdownMenuItem(value: w, child: Text(w)))
+                    .toList(),
+                onChanged: (v) => wood = v ?? wood,
+              ),
+              TextField(
+                controller: dimCtrl,
+                decoration: const InputDecoration(labelText: 'Medidas'),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: priceCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Precio Bs'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: stockCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Stock'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: daysCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Días'),
+                    ),
+                  ),
+                ],
+              ),
+              TextField(
+                controller: descCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Descripción'),
+              ),
+              TextField(
+                controller: imgCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'URL de la foto (opcional)',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final provider = AppScope.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+              final ok = await provider.saveMarketplaceProduct(
+                id: existing?.id,
+                name: nameCtrl.text.trim(),
+                category: category,
+                woodType: wood,
+                dimensions: dimCtrl.text.trim(),
+                price: double.tryParse(priceCtrl.text) ?? 0,
+                stock: int.tryParse(stockCtrl.text) ?? 0,
+                estimatedDays: int.tryParse(daysCtrl.text) ?? 10,
+                description: descCtrl.text.trim(),
+                imageUrl: imgCtrl.text.trim(),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              messenger.showSnackBar(SnackBar(
+                content: Text(ok
+                    ? 'Mueble guardado en el Marketplace'
+                    : 'No se pudo guardar: ${provider.errorMessage ?? ""}'),
+              ));
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = AppScope.of(context);
@@ -1824,13 +1953,23 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
               );
             }),
             const SizedBox(height: 16),
-            const Text(
-              'Catálogo Base de Muebles',
-              style: TextStyle(
-                fontSize: 15.5,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.primaryDarkWood,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Marketplace de Muebles',
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryDarkWood,
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: () => _showProductDialog(context),
+                  icon: const Icon(Icons.add_business_outlined, size: 18),
+                  label: const Text('Publicar'),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             ...provider.allProducts.map(
@@ -1842,11 +1981,25 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    '${prod.woodType} • Bs ${prod.price.toStringAsFixed(0)}',
+                    '${prod.category} • ${prod.woodType} • Bs ${prod.price.toStringAsFixed(0)}\n'
+                    'Stock: ${prod.stock} ${prod.stock <= 0 ? "(Agotado)" : ""}',
                   ),
-                  trailing: OutlinedButton(
-                    onPressed: () => widget.onOrderProduct(prod),
-                    child: const Text('Crear Pedido'),
+                  isThreeLine: true,
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (v) async {
+                      if (v == 'edit') {
+                        _showProductDialog(context, existing: prod);
+                      } else if (v == 'delete') {
+                        await provider.deleteMarketplaceProduct(prod.id);
+                      } else {
+                        widget.onOrderProduct(prod);
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Editar / Stock')),
+                      PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                      PopupMenuItem(value: 'order', child: Text('Crear Pedido')),
+                    ],
                   ),
                 ),
               ),

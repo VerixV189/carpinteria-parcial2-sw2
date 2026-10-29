@@ -153,6 +153,27 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> delete(
+    String endpoint, {
+    bool withAuth = true,
+    Duration? timeout,
+  }) async {
+    try {
+      final response = await _client
+          .delete(
+            _buildUri(endpoint),
+            headers: _buildHeaders(withAuth: withAuth),
+          )
+          .timeout(_timeoutFor(endpoint, timeout));
+      return _processResponse(response);
+    } on SocketException {
+      throw const NetworkException('Sin conexión con el servidor backend.');
+    } on TimeoutException {
+      throw const NetworkException(
+          'Tiempo de espera agotado al conectar al backend.');
+    }
+  }
+
   Future<Map<String, dynamic>> graphql(
     String query, {
     Map<String, dynamic>? variables,

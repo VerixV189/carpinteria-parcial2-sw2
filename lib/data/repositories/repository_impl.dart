@@ -119,10 +119,36 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
 
   @override
   Future<List<ProductEntity>> getProducts() async {
-    // En la arquitectura web (Frontend1-React-Portal/src/catalog.ts),
-    // el catálogo base es servido directamente al cliente y taller.
+    // Marketplace real (MongoDB vía Gateway /api/products); fallback al catálogo local.
+    try {
+      final list = await _remote.getMarketplaceProducts();
+      if (list.isNotEmpty) return list;
+    } catch (_) {
+      // sin backend → catálogo local
+    }
     return _local.getProducts();
   }
+
+  @override
+  Future<ProductEntity> saveMarketplaceProduct(
+    Map<String, dynamic> payload, {
+    String? id,
+  }) =>
+      _remote.upsertMarketplaceProduct(payload, id: id);
+
+  @override
+  Future<bool> deleteMarketplaceProduct(String id) =>
+      _remote.deleteMarketplaceProduct(id);
+
+  @override
+  Future<Map<String, dynamic>> checkoutMarketplace(
+    Map<String, dynamic> payload,
+  ) =>
+      _remote.checkoutMarketplace(payload);
+
+  @override
+  Future<String> uploadImageToS3(String base64, {String fileName = 'mueble.jpg'}) =>
+      _remote.uploadImageToS3(base64: base64, fileName: fileName);
 
   @override
   Future<List<WoodMaterialEntity>> getMaterials() async {

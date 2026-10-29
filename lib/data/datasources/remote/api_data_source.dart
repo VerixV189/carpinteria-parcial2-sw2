@@ -44,6 +44,63 @@ class ApiDataSource {
     return UserModel.fromJson(res as Map<String, dynamic>);
   }
 
+  // ── Marketplace (CRUD muebles + checkout directo, Backend2 Gateway) ─────────
+
+  Future<List<ProductModel>> getMarketplaceProducts() async {
+    final res = await _apiClient.get(ApiConstants.marketplaceProducts);
+    return _extractList(res)
+        .whereType<Map<String, dynamic>>()
+        .map(ProductModel.fromJson)
+        .toList();
+  }
+
+  Future<ProductModel> upsertMarketplaceProduct(
+    Map<String, dynamic> payload, {
+    String? id,
+  }) async {
+    final res = id == null
+        ? await _apiClient.post(ApiConstants.marketplaceProducts, body: payload)
+        : await _apiClient.put('${ApiConstants.marketplaceProducts}/$id',
+            body: payload);
+    return ProductModel.fromJson(res as Map<String, dynamic>);
+  }
+
+  Future<bool> deleteMarketplaceProduct(String id) async {
+    await _apiClient.delete('${ApiConstants.marketplaceProducts}/$id');
+    return true;
+  }
+
+  Future<Map<String, dynamic>> checkoutMarketplace(
+    Map<String, dynamic> payload,
+  ) async {
+    final res = await _apiClient.post(
+      ApiConstants.marketplaceCheckout,
+      body: payload,
+      timeout: ApiConstants.aiTimeout,
+    );
+    return res as Map<String, dynamic>;
+  }
+
+  /// Sube una imagen (base64) al bucket AWS S3 vía Gateway; devuelve la URL pública.
+  Future<String> uploadImageToS3({
+    required String base64,
+    String fileName = 'mueble.jpg',
+    String mimeType = 'image/jpeg',
+    String folder = 'marketplace',
+  }) async {
+    final res = await _apiClient.post(
+      ApiConstants.uploadS3,
+      body: {
+        'base64': base64,
+        'fileName': fileName,
+        'mimeType': mimeType,
+        'folder': folder,
+      },
+      timeout: ApiConstants.aiTimeout,
+    );
+    return (res as Map<String, dynamic>)['url'].toString();
+  }
+
   // ── CU1: Clientes & Segmentación IA (GraphQL + Python IA) ───────────────────
 
   Future<List<ClientProfileModel>> getClients({String? search}) async {

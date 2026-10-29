@@ -14,6 +14,11 @@ class ApiConstants {
   static const String quotations = '/api/quotations';
   static const String payments = '/api/payments';
   static const String cloudinarySignature = '/api/uploads/cloudinary-signature';
+  static const String uploadS3 = '/api/uploads/s3';
+
+  // Marketplace (CRUD de muebles + checkout directo)
+  static const String marketplaceProducts = '/api/products';
+  static const String marketplaceCheckout = '/api/products/checkout';
 
   // Facturación / Recibos PDF (CU5: Backend4-PHP-Recibos via Gateway)
   static const String invoices = '/api/invoices';

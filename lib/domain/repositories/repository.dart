@@ -26,6 +26,15 @@ abstract class CarpentryRepository {
   Future<List<ProductEntity>> getProducts();
   Future<List<WoodMaterialEntity>> getMaterials();
 
+  // Marketplace (CRUD Admin/Carpintero + compra directa del cliente)
+  Future<ProductEntity> saveMarketplaceProduct(
+    Map<String, dynamic> payload, {
+    String? id,
+  });
+  Future<bool> deleteMarketplaceProduct(String id);
+  Future<Map<String, dynamic>> checkoutMarketplace(Map<String, dynamic> payload);
+  Future<String> uploadImageToS3(String base64, {String fileName = 'mueble.jpg'});
+
   // CU1: Clientes & Clustering IA
   Future<List<ClientProfileEntity>> getClients({String? search});
   Future<ClientProfileEntity> createClient({

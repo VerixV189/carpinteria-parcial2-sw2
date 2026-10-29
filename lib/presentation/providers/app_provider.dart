@@ -213,6 +213,44 @@ class AppProvider extends ChangeNotifier {
     double? deliveryLng,
   }) async {
     if (_cart.isEmpty) return false;
+
+    // 1) Checkout real del Marketplace: cobra, descuenta stock, crea pedido
+    //    auto-asignado al carpintero y genera el recibo PDF.
+    if (!isUsingMock) {
+      try {
+        await _repository.checkoutMarketplace({
+          'items': _cart
+              .map((c) => {'productId': c.product.id, 'quantity': c.quantity})
+              .toList(),
+          'deliveryType': deliveryType,
+          'deliveryAddress': deliveryType == 'DELIVERY'
+              ? (deliveryAddress ?? deliveryNotes)
+              : 'Recojo en taller',
+          'deliveryLat': ?deliveryLat,
+          'deliveryLng': ?deliveryLng,
+          if (deliveryNotes.isNotEmpty) 'notes': deliveryNotes,
+          // Pasarela mock: tarjetas 4242… aprueban
+          'cardNumber': '4242424242424242',
+          'cardHolder': (_currentUser?.name ?? 'CLIENTE').toUpperCase(),
+          'expiryMonth': 12,
+          'expiryYear': 2028,
+          'cvv': '123',
+        });
+        _cart.clear();
+        await loadCarpentryData();
+        pushNotification(
+          title: 'Compra confirmada',
+          body: 'Tu pedido entró a producción y el recibo PDF se está generando.',
+        );
+        return true;
+      } catch (e) {
+        _errorMessage = e.toString();
+        notifyListeners();
+        return false;
+      }
+    }
+
+    // 2) Modo offline: pedido local como antes
     final clientName = _currentUser?.name ?? 'Cliente';
     final summaryNames =
         _cart.map((c) => '${c.product.name} (x${c.quantity})').join(', ');
@@ -245,6 +283,60 @@ class AppProvider extends ChangeNotifier {
       notifyListeners();
     }
     return ok;
+  }
+
+  // ── Marketplace CRUD (Admin / Carpintero) ─────────────────────────────────
+
+  Future<bool> saveMarketplaceProduct({
+    String? id,
+    required String name,
+    required String category,
+    required String woodType,
+    required String dimensions,
+    required double price,
+    required int stock,
+    required int estimatedDays,
+    required String description,
+    String? imageUrl,
+    String? imageBase64,
+  }) async {
+    try {
+      var url = imageUrl;
+      if (imageBase64 != null && imageBase64.isNotEmpty) {
+        url = await _repository.uploadImageToS3(imageBase64);
+      }
+      await _repository.saveMarketplaceProduct({
+        'name': name,
+        'category': category,
+        'woodType': woodType,
+        'dimensions': dimensions,
+        'price': price,
+        'stock': stock,
+        'estimatedDays': estimatedDays,
+        'description': description,
+        if (url != null && url.isNotEmpty) 'imageUrl': url,
+      }, id: id);
+      _products = await _repository.getProducts();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteMarketplaceProduct(String id) async {
+    try {
+      await _repository.deleteMarketplaceProduct(id);
+      _products = await _repository.getProducts();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
   }
 
   // ── Sesión, Tiempo Real y Sincronización ──────────────────────────────────
