@@ -42,5 +42,6 @@ flutter:
   uses-material-design: true
   assets:
    - .env
+   - assets/images/logo_el_roble.png
    - assets/models/whisper_onnx/
    - assets/models/llm/Qwen3-1.7B-Q4_K_M.gguf

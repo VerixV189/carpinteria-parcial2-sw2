@@ -1,11 +1,11 @@
 {
-    "name": "carpinteria_movil_sw2",
-    "short_name": "carpinteria_movil_sw2",
+    "name": "Carpintería El Roble",
+    "short_name": "El Roble",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#3E1C00",
+    "theme_color": "#6D3B14",
+    "description": "Carpintería El Roble - Muebles a Medida y Gestión de Taller",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
