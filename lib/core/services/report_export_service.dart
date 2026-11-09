@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:carpinteria_movil_sw2/core/services/push_notification_service.dart';
 
 class ReportExportService {
   /// Genera un documento PDF profesional con la consulta, conclusión de la IA
@@ -166,6 +167,11 @@ class ReportExportService {
         'informe_carpinteria_${DateTime.now().millisecondsSinceEpoch}.pdf';
     final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(bytes, flush: true);
+    await PushNotificationService.showSystemPush(
+      title: 'Informe PDF generado',
+      body:
+          'El archivo PDF para "$userQuery" (${rows.length} registros) está listo.',
+    );
 
     await Printing.sharePdf(bytes: bytes, filename: fileName);
     return file.path;
@@ -203,6 +209,11 @@ class ReportExportService {
         'informe_carpinteria_${DateTime.now().millisecondsSinceEpoch}.xlsx';
     final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(fileBytes, flush: true);
+    await PushNotificationService.showSystemPush(
+      title: 'Informe Excel (.xlsx) generado',
+      body:
+          'El reporte en Excel para "$userQuery" (${rows.length} registros) fue exportado.',
+    );
 
     await Share.shareXFiles(
       [XFile(file.path)],
@@ -241,6 +252,11 @@ class ReportExportService {
         'informe_carpinteria_${DateTime.now().millisecondsSinceEpoch}.csv';
     final file = File('${dir.path}/$fileName');
     await file.writeAsString(csvString, flush: true);
+    await PushNotificationService.showSystemPush(
+      title: 'Informe CSV generado',
+      body:
+          'El archivo CSV para "$userQuery" (${rows.length} registros) fue exportado.',
+    );
 
     await Share.shareXFiles(
       [XFile(file.path)],

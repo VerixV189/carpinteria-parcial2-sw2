@@ -1787,6 +1787,113 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.fingerprint_rounded,
+                        color: AppTheme.primaryWood,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Inicio de Sesión con Huella Dactilar',
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryDarkWood,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: provider.isCurrentUserBiometricEnabled
+                              ? Colors.green.shade100
+                              : Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          provider.isCurrentUserBiometricEnabled
+                              ? 'Activa'
+                              : 'Sin vincular',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: provider.isCurrentUserBiometricEnabled
+                                ? Colors.green.shade900
+                                : Colors.orange.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    provider.isCurrentUserBiometricEnabled
+                        ? 'Tu huella está vinculada a ${user?.email ?? ""}. Al iniciar sesión solo necesitarás escribir tu correo y poner tu huella dactilar, sin introducir tu contraseña.'
+                        : 'Configura tu huella dactilar aquí para desbloquear tu cuenta en cualquier momento introduciendo únicamente tu correo electrónico y tu huella.',
+                    style: const TextStyle(fontSize: 12.5, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppTheme.primaryWood,
+                          ),
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final ok = await provider
+                                .configureBiometricForCurrentUser();
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  ok
+                                      ? 'Huella dactilar vinculada exitosamente a ${user?.email ?? "tu cuenta"}'
+                                      : (provider.errorMessage ??
+                                          'No se pudo vincular la huella'),
+                                ),
+                                backgroundColor: ok
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.fingerprint_rounded),
+                          label: Text(
+                            provider.isCurrentUserBiometricEnabled
+                                ? 'Actualizar Huella Dactilar'
+                                : 'Configurar Inicio con Huella Dactilar',
+                          ),
+                        ),
+                      ),
+                      if (provider.isCurrentUserBiometricEnabled) ...[
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () async {
+                            await provider.disableBiometricForCurrentUser();
+                          },
+                          child: const Text('Desactivar'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const Text(
                     'Servidor de Sincronización',
                     style: TextStyle(

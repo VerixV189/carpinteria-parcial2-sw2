@@ -95,8 +95,14 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
     }
 
     try {
+      final provider = AppScope.of(context);
       final res = await _llmService.generateSqlReport(requestText);
       if (!mounted) return;
+      provider.pushNotification(
+        title: 'Informe ejecutivo generado',
+        body:
+            'Informe "$requestText" completado con ${res.rows.length} registros listos para exportar.',
+      );
       setState(() {
         _quickReport = res;
         _loadingReport = false;

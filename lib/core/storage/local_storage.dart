@@ -4,8 +4,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalStorage {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'auth_user';
+  static const String _sessionPasswordKey = 'auth_session_password';
   static const String _sessionExpiresAtKey = 'auth_session_expires_at';
   static const String _biometricCredentialsKey = 'biometric_saved_credentials';
+  static const String _biometricAccountsByEmailKey =
+      'biometric_accounts_by_email';
   static const String _baseUrlKey = 'custom_base_url';
   static const String _registeredUsersKey = 'local_registered_users';
 
@@ -63,6 +66,28 @@ class LocalStorage {
     return DateTime.fromMillisecondsSinceEpoch(expiresAtMs);
   }
 
+  static Future<void> saveSessionPassword(String password) async {
+    await init();
+    await _prefs!.setString(_sessionPasswordKey, password);
+  }
+
+  static String? getSessionPassword() {
+    return _prefs?.getString(_sessionPasswordKey);
+  }
+
+  static Map<String, Map<String, dynamic>> _getBiometricAccountsMap() {
+    final raw = _prefs?.getString(_biometricAccountsByEmailKey);
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map(
+        (key, value) => MapEntry(key, Map<String, dynamic>.from(value as Map)),
+      );
+    } catch (_) {
+      return {};
+    }
+  }
+
   static Future<void> saveBiometricCredentials({
     required String email,
     required String password,
@@ -70,14 +95,56 @@ class LocalStorage {
     required String role,
   }) async {
     await init();
+    final key = email.trim().toLowerCase();
     final payload = {
-      'email': email,
+      'email': email.trim(),
       'password': password,
       'name': name,
       'role': role,
       'expiresAt': DateTime.now().add(biometricTtl).millisecondsSinceEpoch,
     };
+    final map = _getBiometricAccountsMap();
+    map[key] = payload;
+    await _prefs!.setString(_biometricAccountsByEmailKey, jsonEncode(map));
     await _prefs!.setString(_biometricCredentialsKey, jsonEncode(payload));
+  }
+
+  static Future<void> removeBiometricForEmail(String email) async {
+    await init();
+    final key = email.trim().toLowerCase();
+    final map = _getBiometricAccountsMap();
+    map.remove(key);
+    await _prefs!.setString(_biometricAccountsByEmailKey, jsonEncode(map));
+    final currentLast = getBiometricCredentials();
+    if (currentLast != null &&
+        (currentLast['email'] as String?)?.trim().toLowerCase() == key) {
+      await _prefs!.remove(_biometricCredentialsKey);
+    }
+  }
+
+  static bool isBiometricEnrolledForEmail(String email) {
+    return getBiometricAccountForEmail(email) != null;
+  }
+
+  static Map<String, dynamic>? getBiometricAccountForEmail(String email) {
+    final key = email.trim().toLowerCase();
+    if (key.isEmpty) return null;
+    final map = _getBiometricAccountsMap();
+    final entry = map[key];
+    if (entry != null) {
+      final expiresAt = entry['expiresAt'] as int?;
+      if (expiresAt != null &&
+          DateTime.now().millisecondsSinceEpoch > expiresAt) {
+        return null;
+      }
+      return entry;
+    }
+    final last = getBiometricCredentials();
+    if (last != null &&
+        (last['email'] as String?)?.trim().toLowerCase() == key) {
+      return last;
+    }
+    return null;
   }
 
   static Map<String, dynamic>? getBiometricCredentials() {
@@ -100,6 +167,7 @@ class LocalStorage {
     await init();
     await _prefs!.remove(_tokenKey);
     await _prefs!.remove(_userKey);
+    await _prefs!.remove(_sessionPasswordKey);
     await _prefs!.remove(_sessionExpiresAtKey);
   }
 

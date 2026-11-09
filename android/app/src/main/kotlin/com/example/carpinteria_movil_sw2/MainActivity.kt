@@ -1,6 +1,14 @@
 package com.example.carpinteria_movil_sw2
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.content.res.AssetManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -8,17 +16,36 @@ import io.flutter.plugin.common.EventChannel
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.atomic.AtomicInteger
 
 class MainActivity : FlutterFragmentActivity() {
 
     private val METHOD_CHANNEL = "carpinteria/model_copy"
     private val EVENT_CHANNEL  = "carpinteria/model_copy_progress"
+    private val PUSH_CHANNEL   = "carpinteria/push_notifications"
+    private val NOTIFICATION_CHANNEL_ID = "el_roble_push_channel"
 
     private var progressSink: EventChannel.EventSink? = null
     private var copyJob: Job? = null
+    private val notificationIdCounter = AtomicInteger(1001)
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        createPushNotificationChannel()
+
+        // ── Native Push Notification channel ──────────────────────────────────
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PUSH_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "showPushNotification" -> {
+                        val title = call.argument<String>("title") ?: "Carpintería El Roble"
+                        val body = call.argument<String>("body") ?: ""
+                        showNativeNotification(title, body)
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
 
         // ── Progress event channel ────────────────────────────────────────────
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL)
@@ -113,6 +140,51 @@ class MainActivity : FlutterFragmentActivity() {
                 }
                 output.flush()
             }
+        }
+    }
+
+    private fun createPushNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Avisos Carpintería El Roble"
+            val descriptionText = "Notificaciones de informes, cotizaciones, pedidos, pagos y despachos"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+                enableVibration(true)
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun showNativeNotification(title: String, body: String) {
+        try {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+            val pendingIntent = PendingIntent.getActivity(this, 0, intent, pendingIntentFlags)
+
+            val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+
+            NotificationManagerCompat.from(this)
+                .notify(notificationIdCounter.getAndIncrement(), builder.build())
+        } catch (_: SecurityException) {
+            // Permiso POST_NOTIFICATIONS aún no concedido en Android 13+
+        } catch (_: Exception) {
         }
     }
 }

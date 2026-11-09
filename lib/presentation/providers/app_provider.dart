@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
 import 'package:carpinteria_movil_sw2/core/services/biometric_auth_service.dart';
+import 'package:carpinteria_movil_sw2/core/services/push_notification_service.dart';
 import 'package:carpinteria_movil_sw2/core/services/realtime_notification_service.dart';
 import 'package:carpinteria_movil_sw2/core/storage/local_storage.dart';
 import 'package:carpinteria_movil_sw2/core/storage/sqlite_database.dart';
@@ -131,12 +132,17 @@ class AppProvider extends ChangeNotifier {
     _notifications.insert(0, notif);
     _latestToastNotification = notif;
     notifyListeners();
+    PushNotificationService.showSystemPush(title: title, body: body);
   }
 
   void _handleIncomingRealtimeNotification(AppNotificationEntity notif) {
     _notifications.insert(0, notif);
     _latestToastNotification = notif;
     notifyListeners();
+    PushNotificationService.showSystemPush(
+      title: notif.title,
+      body: notif.body,
+    );
     // Refrescar pedidos y cotizaciones silenciosamente
     refreshSilent();
   }
@@ -385,12 +391,8 @@ class AppProvider extends ChangeNotifier {
     try {
       _currentUser = await _repository.login(email: email, password: password);
       if (_currentUser != null) {
-        await LocalStorage.saveBiometricCredentials(
-          email: email,
-          password: password,
-          name: _currentUser!.name,
-          role: _currentUser!.role,
-        );
+        await LocalStorage.saveSessionPassword(password);
+        await PushNotificationService.requestPermissionIfNeeded();
       }
       await loadCarpentryData();
       _startRealtimeServices();
@@ -410,24 +412,98 @@ class AppProvider extends ChangeNotifier {
 
   DateTime? get sessionExpiresAt => LocalStorage.getSessionExpiresAt();
 
+  bool get isCurrentUserBiometricEnabled {
+    final email = _currentUser?.email ?? '';
+    if (email.isEmpty) return false;
+    return LocalStorage.isBiometricEnrolledForEmail(email);
+  }
+
+  String _defaultPasswordForEmail(String email) {
+    final lower = email.trim().toLowerCase();
+    if (lower == 'admin@carpinteria.com') return 'admin123';
+    if (lower == 'carpintero@carpinteria.com') return 'carp123';
+    if (lower == 'cliente@carpinteria.com') return 'cliente123';
+    for (final reg in LocalStorage.getRegisteredUsers()) {
+      if ((reg['email'] as String?)?.trim().toLowerCase() == lower) {
+        return (reg['password'] as String?) ?? 'cliente123';
+      }
+    }
+    return 'cliente123';
+  }
+
+  Future<bool> configureBiometricForCurrentUser() async {
+    final user = _currentUser;
+    if (user == null) return false;
+    _errorMessage = null;
+
+    final bioResult = await _biometricService.authenticateWithFingerprint(
+      reason:
+          'Coloca tu huella dactilar para vincularla a tu cuenta (${user.email})',
+    );
+
+    if (!bioResult.authenticated) {
+      _errorMessage = bioResult.error;
+      notifyListeners();
+      return false;
+    }
+
+    final password =
+        LocalStorage.getSessionPassword() ?? _defaultPasswordForEmail(user.email);
+    await LocalStorage.saveBiometricCredentials(
+      email: user.email,
+      password: password,
+      name: user.name,
+      role: user.role,
+    );
+    pushNotification(
+      title: 'Huella dactilar configurada',
+      body:
+          'Ahora puedes iniciar sesión solo ingresando tu correo (${user.email}) y tu huella dactilar.',
+    );
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> disableBiometricForCurrentUser() async {
+    final user = _currentUser;
+    if (user == null) return;
+    await LocalStorage.removeBiometricForEmail(user.email);
+    pushNotification(
+      title: 'Huella dactilar desvinculada',
+      body: 'Se desactivó el acceso con huella para la cuenta ${user.email}.',
+    );
+    notifyListeners();
+  }
+
   Future<bool> loginWithBiometrics({
     String? preferredEmail,
     String? preferredPassword,
   }) async {
     _errorMessage = null;
-    final saved = LocalStorage.getBiometricCredentials();
-    final email = (preferredEmail != null && preferredEmail.trim().isNotEmpty)
-        ? preferredEmail.trim()
-        : (saved?['email'] as String?) ?? 'cliente@carpinteria.com';
+    final typedEmail = (preferredEmail ?? '').trim();
+    if (typedEmail.isEmpty) {
+      _errorMessage =
+          'Ingresa primero tu correo electrónico para desbloquear con tu huella dactilar.';
+      notifyListeners();
+      return false;
+    }
+
+    final savedForEmail = LocalStorage.getBiometricAccountForEmail(typedEmail);
+    if (savedForEmail == null) {
+      _errorMessage =
+          'La cuenta $typedEmail aún no tiene huella configurada. Inicia sesión con tu contraseña y actívala en Mi Perfil.';
+      notifyListeners();
+      return false;
+    }
+
+    final email = (savedForEmail['email'] as String?) ?? typedEmail;
     final password =
-        (preferredPassword != null && preferredPassword.isNotEmpty)
-            ? preferredPassword
-            : (saved?['password'] as String?) ?? 'cliente123';
-    final displayName = (saved?['name'] as String?) ?? email;
+        (savedForEmail['password'] as String?) ?? _defaultPasswordForEmail(email);
+    final displayName = (savedForEmail['name'] as String?) ?? email;
 
     final bioResult = await _biometricService.authenticateWithFingerprint(
       reason:
-          'Verifica tu huella digital para ingresar como $displayName a Carpintería El Roble',
+          'Verifica tu huella dactilar para ingresar como $displayName ($email)',
     );
 
     if (!bioResult.authenticated) {
@@ -459,12 +535,8 @@ class AppProvider extends ChangeNotifier {
         role: role,
       );
       if (_currentUser != null) {
-        await LocalStorage.saveBiometricCredentials(
-          email: email,
-          password: password,
-          name: _currentUser!.name,
-          role: _currentUser!.role,
-        );
+        await LocalStorage.saveSessionPassword(password);
+        await PushNotificationService.requestPermissionIfNeeded();
       }
       await loadCarpentryData();
       _startRealtimeServices();
@@ -779,6 +851,13 @@ class AppProvider extends ChangeNotifier {
         longitude: longitude,
       );
       _quotations = [created, ..._quotations];
+      pushNotification(
+        title: 'Nueva cotización solicitada',
+        body:
+            'Se registró la cotización de "${created.description}" (${created.woodType}) por Bs ${created.payableAmount.toStringAsFixed(0)}.',
+        orderId: created.id,
+        status: created.status,
+      );
       await loadCarpentryData();
       notifyListeners();
       return created;
@@ -803,6 +882,16 @@ class AppProvider extends ChangeNotifier {
         message: message,
       );
       _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
+      pushNotification(
+        title: action == 'counter'
+            ? 'Contraoferta enviada al taller'
+            : 'Cotización actualizada',
+        body: action == 'counter'
+            ? 'Propusiste Bs ${(counterAmount ?? updated.payableAmount).toStringAsFixed(0)} para "${updated.description}".'
+            : 'La cotización "${updated.description}" pasó a estado: ${updated.statusLabel}.',
+        orderId: id,
+        status: updated.status,
+      );
       notifyListeners();
       return updated;
     } catch (e) {
@@ -850,6 +939,13 @@ class AppProvider extends ChangeNotifier {
         notes: notes,
       );
       _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
+      pushNotification(
+        title: 'Cotización aprobada',
+        body:
+            'La cotización "${updated.description}" fue aprobada por Bs ${updated.payableAmount.toStringAsFixed(0)}.',
+        orderId: id,
+        status: updated.status,
+      );
       notifyListeners();
       return true;
     } catch (_) {
@@ -867,6 +963,13 @@ class AppProvider extends ChangeNotifier {
         reason: reason,
       );
       _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
+      pushNotification(
+        title: 'Cotización rechazada',
+        body:
+            'La cotización "${updated.description}" fue marcada como rechazada.',
+        orderId: id,
+        status: updated.status,
+      );
       notifyListeners();
       return true;
     } catch (_) {
@@ -906,6 +1009,13 @@ class AppProvider extends ChangeNotifier {
         deliveryLng: deliveryLng,
       );
       _orders = [created, ..._orders];
+      pushNotification(
+        title: 'Nuevo pedido registrado (#${created.id})',
+        body:
+            '$productName en madera $woodType para $clientName (Bs ${totalAmount.toStringAsFixed(0)}).',
+        orderId: created.id,
+        status: created.status,
+      );
       await SqliteDatabase.syncAll(
         products: _products,
         orders: _orders,
@@ -948,6 +1058,13 @@ class AppProvider extends ChangeNotifier {
     try {
       final updated = await _repository.assignCarpenter(orderId, carpenterId);
       _orders = _orders.map((o) => o.id == orderId ? updated : o).toList();
+      pushNotification(
+        title: 'Maestro carpintero asignado',
+        body:
+            'El pedido #$orderId (${updated.productName}) fue asignado a ${updated.carpenters.isNotEmpty ? updated.carpenters.first.name : "taller"}.',
+        orderId: orderId,
+        status: updated.status,
+      );
       notifyListeners();
       return true;
     } catch (_) {
@@ -1001,6 +1118,13 @@ class AppProvider extends ChangeNotifier {
         longitude: longitude,
       );
       _deliveries = [created, ..._deliveries];
+      pushNotification(
+        title: 'Despacho programado',
+        body:
+            'Entrega del pedido #$orderId agendada para el $scheduledDate ($timeSlot) en $address.',
+        orderId: orderId,
+        status: created.status,
+      );
       await loadCarpentryData();
       return true;
     } catch (e) {
@@ -1014,6 +1138,13 @@ class AppProvider extends ChangeNotifier {
     try {
       final updated = await _repository.updateDeliveryStatus(id, status);
       _deliveries = _deliveries.map((d) => d.id == id ? updated : d).toList();
+      pushNotification(
+        title: 'Estado de entrega actualizado',
+        body:
+            'El despacho hacia ${updated.address} cambió a estado: ${updated.statusLabel}.',
+        orderId: updated.orderId,
+        status: updated.status,
+      );
       await loadCarpentryData();
       return true;
     } catch (_) {
@@ -1033,6 +1164,13 @@ class AppProvider extends ChangeNotifier {
         timeSlot: timeSlot,
       );
       _deliveries = _deliveries.map((d) => d.id == id ? updated : d).toList();
+      pushNotification(
+        title: 'Entrega reprogramada',
+        body:
+            'El despacho hacia ${updated.address} fue reprogramado para el $newDate.',
+        orderId: updated.orderId,
+        status: updated.status,
+      );
       await loadCarpentryData();
       return true;
     } catch (_) {
@@ -1066,6 +1204,11 @@ class AppProvider extends ChangeNotifier {
         ],
       );
       _invoices = [created, ..._invoices];
+      pushNotification(
+        title: 'Factura oficial emitida',
+        body:
+            'Factura ${created.series}-${created.number} emitida para $clientName por Bs ${created.total.toStringAsFixed(2)}.',
+      );
       notifyListeners();
       return true;
     } catch (_) {
@@ -1127,8 +1270,14 @@ class AppProvider extends ChangeNotifier {
     return _repository.askOnlineAgent(query: query, sessionId: sessionId);
   }
 
-  Future<OnlineNlReportEntity> generateOnlineReport(String query) {
-    return _repository.generateOnlineReport(query);
+  Future<OnlineNlReportEntity> generateOnlineReport(String query) async {
+    final res = await _repository.generateOnlineReport(query);
+    pushNotification(
+      title: 'Informe ejecutivo generado',
+      body:
+          'Se generó el informe para "$query" (${res.rows.length} registros listos para exportar).',
+    );
+    return res;
   }
 
   Future<void> updateBackendUrl(String url) async {

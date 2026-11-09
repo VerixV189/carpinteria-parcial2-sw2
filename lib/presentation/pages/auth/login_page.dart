@@ -49,10 +49,23 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _submitBiometricLogin() async {
+    final email = _emailController.text.trim();
+    final emailErr = Validators.email(email);
+    if (emailErr != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Ingresa tu correo electrónico arriba para desbloquear con tu huella dactilar (sin contraseña).',
+          ),
+          backgroundColor: Colors.orange.shade900,
+        ),
+      );
+      return;
+    }
+
     final provider = AppScope.of(context);
     final success = await provider.loginWithBiometrics(
-      preferredEmail: _emailController.text.trim(),
-      preferredPassword: _passwordController.text,
+      preferredEmail: email,
     );
 
     if (!mounted) return;
@@ -401,21 +414,19 @@ class _LoginPageState extends State<LoginPage> {
                                   size: 28,
                                   color: AppTheme.primaryWood,
                                 ),
-                                label: Text(
-                                  provider.savedBiometricAccount != null
-                                      ? 'Ingresar con Huella (${provider.savedBiometricAccount!['name']})'
-                                      : 'Ingresar con Huella Digital',
+                                label: const Text(
+                                  'Desbloquear con Correo y Huella Dactilar',
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 13.5,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
                             ),
                             const SizedBox(height: 6),
                             const Text(
-                              'Sesión activa válida por 24 h • Huella vinculada por 7 días',
+                              'Ingresa solo tu correo (sin contraseña) si activaste tu huella en Mi Perfil',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 10.5,
