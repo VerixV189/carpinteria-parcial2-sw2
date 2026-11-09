@@ -35,7 +35,7 @@ abstract class CarpentryRepository {
   Future<Map<String, dynamic>> checkoutMarketplace(Map<String, dynamic> payload);
   Future<String> uploadImageToS3(String base64, {String fileName = 'mueble.jpg'});
 
-  // CU1: Clientes & Clustering IA
+  // Clientes y Segmentación
   Future<List<ClientProfileEntity>> getClients({String? search});
   Future<ClientProfileEntity> createClient({
     required String name,
@@ -55,7 +55,7 @@ abstract class CarpentryRepository {
   Future<bool> deleteClient(String id);
   Future<List<ClientClusterEntity>> clusterClients();
 
-  // CU2: Carpinteros & Taller
+  // Carpinteros y Taller
   Future<List<CarpenterEntity>> getCarpenters({bool activeOnly = false});
   Future<CarpenterEntity> createCarpenter({
     required String name,
@@ -79,7 +79,7 @@ abstract class CarpentryRepository {
   Future<bool> deleteCarpenter(String id);
   Future<List<OrderEntity>> getCarpenterWorkload(String carpenterId);
 
-  // CU3: Cotizaciones con IA & Negociación
+  // Cotizaciones y Negociación
   Future<AiEstimateEntity> estimateFurniture({
     required String description,
     required String woodType,
@@ -120,7 +120,7 @@ abstract class CarpentryRepository {
     String? reason,
   });
 
-  // CU4: Pedidos, Pasos de Producción y Entregas
+  // Pedidos, Pasos de Producción y Entregas
   Future<List<OrderEntity>> getOrders();
   Future<OrderEntity> createOrder({
     required String clientName,
@@ -160,7 +160,7 @@ abstract class CarpentryRepository {
     String? timeSlot,
   });
 
-  // CU5: Facturas y Recibos PDF
+  // Facturas y Recibos PDF
   Future<List<InvoiceEntity>> getInvoices({String? clientEmail});
   Future<InvoiceEntity> createInvoice({
     required String clientName,
@@ -172,7 +172,7 @@ abstract class CarpentryRepository {
   });
   Future<Uint8List> downloadInvoicePdf(String invoiceId);
 
-  // CU6: Pagos y Auditoría DynamoDB
+  // Pagos y Registro de Transacciones
   Future<PaymentResultEntity> processPayment({
     required String quotationId,
     required double amount,
@@ -184,7 +184,7 @@ abstract class CarpentryRepository {
   });
   Future<List<PaymentLogEntity>> getPaymentLogs(String paymentId);
 
-  // CU7: Agente IA Online & Reportes NL Online
+  // Asistente IA y Reportes
   Future<OnlineAgentReplyEntity> askOnlineAgent({
     required String query,
     String? sessionId,

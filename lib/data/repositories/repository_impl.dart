@@ -155,7 +155,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     return _local.getMaterials();
   }
 
-  // ── CU1: Clientes & Segmentación IA ─────────────────────────────────────────
+  // ── Clientes y Segmentación ─────────────────────────────────────────────────
 
   @override
   Future<List<ClientProfileEntity>> getClients({String? search}) async {
@@ -279,7 +279,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     }
   }
 
-  // ── CU2: Carpinteros & Taller ───────────────────────────────────────────────
+  // ── Carpinteros y Taller ────────────────────────────────────────────────────
 
   @override
   Future<List<CarpenterEntity>> getCarpenters({bool activeOnly = false}) async {
@@ -384,7 +384,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     }
   }
 
-  // ── CU3: Cotizaciones con IA & Negociación ──────────────────────────────────
+  // ── Cotizaciones y Negociación ──────────────────────────────────────────────
 
   @override
   Future<AiEstimateEntity> estimateFurniture({
@@ -664,7 +664,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     }
   }
 
-  // ── CU4: Pedidos, Pasos de Producción y Entregas ────────────────────────────
+  // ── Pedidos, Pasos de Producción y Entregas ─────────────────────────────────
 
   @override
   Future<List<OrderEntity>> getOrders() async {
@@ -1003,7 +1003,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     }
   }
 
-  // ── CU5: Facturas y Recibos PDF ─────────────────────────────────────────────
+  // ── Facturas y Recibos PDF ──────────────────────────────────────────────────
 
   @override
   Future<List<InvoiceEntity>> getInvoices({String? clientEmail}) async {
@@ -1094,7 +1094,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  'RECIBO / FACTURA OFICIAL — CARPINTERÍA SW2',
+                  'RECIBO / FACTURA OFICIAL — CARPINTERÍA EL ROBLE',
                   style: pw.TextStyle(
                     fontSize: 18,
                     fontWeight: pw.FontWeight.bold,
@@ -1148,7 +1148,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     }
   }
 
-  // ── CU6: Pagos y Auditoría DynamoDB ─────────────────────────────────────────
+  // ── Pagos y Registro de Transacciones ───────────────────────────────────────
 
   @override
   Future<PaymentResultEntity> processPayment({
@@ -1235,7 +1235,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     }
   }
 
-  // ── CU7: Agente IA Online & Reportes NL Online ──────────────────────────────
+  // ── Asistente Inteligente y Reportes ────────────────────────────────────────
 
   @override
   Future<OnlineAgentReplyEntity> askOnlineAgent({

@@ -9,7 +9,7 @@ class ApiDataSource {
 
   ApiDataSource({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
-  // ── Auth (Backend2-NestJS-Gateway) ──────────────────────────────────────────
+  // ── Autenticación ───────────────────────────────────────────────────────────
 
   Future<UserModel> login(String email, String password) async {
     final res = await _apiClient.post(
@@ -30,7 +30,6 @@ class ApiDataSource {
     required String password,
     required String role,
   }) async {
-    // RegisterDto en NestJS usa ValidationPipe(whitelist: true) con email, password, name, phone
     final res = await _apiClient.post(
       ApiConstants.register,
       withAuth: false,
@@ -44,7 +43,7 @@ class ApiDataSource {
     return UserModel.fromJson(res as Map<String, dynamic>);
   }
 
-  // ── Marketplace (CRUD muebles + checkout directo, Backend2 Gateway) ─────────
+  // ── Catálogo y Compras Directas ─────────────────────────────────────────────
 
   Future<List<ProductModel>> getMarketplaceProducts() async {
     final res = await _apiClient.get(ApiConstants.marketplaceProducts);
@@ -101,7 +100,7 @@ class ApiDataSource {
     return (res as Map<String, dynamic>)['url'].toString();
   }
 
-  // ── CU1: Clientes & Segmentación IA (GraphQL + Python IA) ───────────────────
+  // ── Clientes y Segmentación ─────────────────────────────────────────────────
 
   Future<List<ClientProfileModel>> getClients({String? search}) async {
     const query = r'''
@@ -177,7 +176,7 @@ class ApiDataSource {
     return [];
   }
 
-  // ── CU2: Carpinteros & Taller (GraphQL Backend1) ────────────────────────────
+  // ── Carpinteros y Taller ────────────────────────────────────────────────────
 
   Future<List<CarpenterModel>> getCarpenters({bool activeOnly = false}) async {
     const query = r'''
@@ -260,7 +259,7 @@ class ApiDataSource {
         .toList();
   }
 
-  // ── CU3: Cotizaciones con IA & Negociación (REST Gateway + Python IA) ──────
+  // ── Cotizaciones y Negociación ──────────────────────────────────────────────
 
   Future<AiEstimateModel> estimateFurniture({
     required String description,
@@ -357,7 +356,7 @@ class ApiDataSource {
     return QuotationModel.fromJson(res as Map<String, dynamic>);
   }
 
-  // ── CU4: Pedidos, Pasos de Producción y Entregas (GraphQL Backend1) ─────────
+  // ── Pedidos, Pasos de Producción y Entregas ─────────────────────────────────
 
   Future<List<OrderModel>> getOrders() async {
     const query = r'''
@@ -577,7 +576,7 @@ class ApiDataSource {
     );
   }
 
-  // ── CU5: Facturas y Recibos PDF (Backend4-PHP-Recibos) ──────────────────────
+  // ── Facturas y Recibos PDF ──────────────────────────────────────────────────
 
   Future<List<InvoiceModel>> getInvoices({String? clientEmail}) async {
     final res = await _apiClient.get(
@@ -603,7 +602,7 @@ class ApiDataSource {
     return _apiClient.getBytes('${ApiConstants.invoices}/$invoiceId/download');
   }
 
-  // ── CU6: Pagos y Auditoría DynamoDB (Backend2-NestJS-Gateway) ───────────────
+  // ── Pagos y Registro de Transacciones ───────────────────────────────────────
 
   Future<PaymentResultModel> processPayment(Map<String, dynamic> payload) async {
     final res = await _apiClient.post(ApiConstants.payments, body: payload);
@@ -619,7 +618,7 @@ class ApiDataSource {
         .toList();
   }
 
-  // ── CU7: Agente IA Online & Reportes NL Online (Backend3-Python-IA-MCP) ─────
+  // ── Asistente Inteligente y Reportes ────────────────────────────────────────
 
   Future<OnlineAgentReplyModel> askOnlineAgent({
     required String query,

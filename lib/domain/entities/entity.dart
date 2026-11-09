@@ -55,7 +55,7 @@ class ProductEntity {
   });
 }
 
-// ── CU1: Clientes & Segmentación IA ──────────────────────────────────────────
+// ── Clientes y Segmentación ──────────────────────────────────────────────────
 
 class ClientProfileEntity {
   final String id;
@@ -91,7 +91,7 @@ class ClientClusterEntity {
   });
 }
 
-// ── CU2: Carpinteros & Pasos de Producción ───────────────────────────────────
+// ── Carpinteros y Pasos de Producción ────────────────────────────────────────
 
 class CarpenterEntity {
   final String id;
@@ -132,7 +132,7 @@ class ProductionStepEntity {
   bool get isInProgress => status.toUpperCase() == 'IN_PROGRESS';
 }
 
-// ── CU4: Pedidos y Entregas (GraphQL Backend1) ───────────────────────────────
+// ── Pedidos y Entregas ───────────────────────────────────────────────────────
 
 class OrderItemDetailEntity {
   final String id;
@@ -324,7 +324,7 @@ class OrderEntity {
   }
 }
 
-// ── CU3: Cotizaciones con IA & Negociación ───────────────────────────────────
+// ── Cotizaciones y Negociación ───────────────────────────────────────────────
 
 class AiEstimateEntity {
   final String furnitureType;
@@ -402,7 +402,7 @@ class QuotationEntity {
   }
 }
 
-// ── CU5: Facturas y Recibos PDF (Backend4 PHP) ───────────────────────────────
+// ── Facturas y Recibos PDF ───────────────────────────────────────────────────
 
 class InvoiceItemEntity {
   final String description;
@@ -452,7 +452,7 @@ class InvoiceEntity {
   });
 }
 
-// ── CU6: Pagos y Logs de Auditoría DynamoDB ──────────────────────────────────
+// ── Pagos y Registro de Transacciones ────────────────────────────────────────
 
 class PaymentLogEntity {
   final String paymentId;
@@ -490,7 +490,7 @@ class PaymentResultEntity {
   });
 }
 
-// ── CU7: Agente IA Online + Reportes NL ──────────────────────────────────────
+// ── Asistente Inteligente y Reportes ─────────────────────────────────────────
 
 class OnlineAgentReplyEntity {
   final String answer;

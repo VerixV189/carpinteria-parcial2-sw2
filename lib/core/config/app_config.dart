@@ -60,5 +60,5 @@ class AppConfig {
   }
 
   static String get appName =>
-      _safeGetEnv('APP_NAME') ?? 'Carpintería Móvil';
+      _safeGetEnv('APP_NAME') ?? 'Carpintería El Roble';
 }

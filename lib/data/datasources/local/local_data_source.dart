@@ -88,7 +88,7 @@ class LocalDataSource {
   static final List<ClientProfileModel> _mockClients = [
     const ClientProfileModel(
       id: 'CLI-1',
-      name: 'Cliente Demo',
+      name: 'Roberto Suárez',
       email: 'cliente@carpinteria.com',
       phone: '+591 70011223',
       address: 'Av. Cristo Redentor 4to Anillo, Santa Cruz',
@@ -115,7 +115,7 @@ class LocalDataSource {
   static final List<CarpenterModel> _mockCarpenters = [
     const CarpenterModel(
       id: 'CARP-1',
-      name: 'Maestro Carpintero Taller',
+      name: 'Héctor Villarroel',
       email: 'carpintero@carpinteria.com',
       phone: '+591 72100991',
       specialty: 'Ebanistería fina y comedores',
@@ -137,7 +137,7 @@ class LocalDataSource {
 
   static final List<QuotationModel> _mockQuotations = [
     const QuotationModel(
-      id: 'Q-DEMO-101',
+      id: 'COT-101',
       clientId: 'cliente@carpinteria.com',
       status: 'QUOTED',
       description: 'Mesa de comedor para 6 personas con acabado natural mate',
@@ -157,7 +157,7 @@ class LocalDataSource {
       createdAt: '2026-10-25',
     ),
     const QuotationModel(
-      id: 'Q-DEMO-102',
+      id: 'COT-102',
       clientId: 'cliente@carpinteria.com',
       status: 'DRAFT',
       description: 'Ropero de 3 puertas corredizas con espejo interior',
@@ -178,7 +178,7 @@ class LocalDataSource {
     const OrderModel(
       id: '101',
       clientId: 'CLI-1',
-      clientName: 'Cliente Demo',
+      clientName: 'Roberto Suárez',
       clientEmail: 'cliente@carpinteria.com',
       clientPhone: '+591 70011223',
       productName: 'Mesa de Comedor Imperial (6-8 Personas)',
@@ -197,7 +197,7 @@ class LocalDataSource {
       carpenters: [
         CarpenterModel(
           id: 'CARP-1',
-          name: 'Maestro Carpintero Taller',
+          name: 'Héctor Villarroel',
           email: 'carpintero@carpinteria.com',
           specialty: 'Ebanistería fina y comedores',
         ),
@@ -325,11 +325,11 @@ class LocalDataSource {
       id: 'INV-1',
       number: '000104',
       series: 'A',
-      clientName: 'Cliente Demo',
+      clientName: 'Roberto Suárez',
       clientNit: '4829102015',
       clientEmail: 'cliente@carpinteria.com',
       orderId: '101',
-      paymentId: 'PAY-DEMO-01',
+      paymentId: 'PAY-00104',
       subtotal: 1914.0,
       tax: 286.0,
       total: 2200.0,
@@ -421,15 +421,15 @@ class LocalDataSource {
       String name = _nameFromEmail(cleanEmail);
       if (cleanEmail.contains('admin')) {
         role = 'ADMIN';
-        name = 'Administrador Carpintería';
+        name = 'Dirección General';
       } else if (cleanEmail.contains('carpintero') ||
           cleanEmail.contains('maestro') ||
           cleanEmail.contains('taller')) {
         role = 'CARPENTER';
-        name = 'Maestro Carpintero Taller';
+        name = 'Héctor Villarroel';
       } else if (cleanEmail.contains('cliente')) {
         role = 'CLIENT';
-        name = 'Cliente Demo';
+        name = 'Roberto Suárez';
       }
       return UserModel(
         id: 'USR-$role-01',

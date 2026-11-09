@@ -1,29 +1,29 @@
 class ApiConstants {
-  // Auth endpoints (Backend2-NestJS-Gateway)
+  // Autenticación
   static const String login = '/auth/login';
   static const String register = '/auth/register';
   static const String profile = '/auth/me';
   static const String health = '/health';
 
-  // GraphQL & Subscriptions (Backend1-Java-Negocio via Gateway)
+  // GraphQL y Suscripciones en tiempo real
   static const String graphql = '/graphql';
   static const String subscriptions = '/subscriptions';
   static const String wsNotifications = '/ws';
 
-  // REST Gateway endpoints (CU3: Cotizaciones, CU6: Pagos, Uploads)
+  // Cotizaciones, Pagos y Archivos
   static const String quotations = '/api/quotations';
   static const String payments = '/api/payments';
   static const String cloudinarySignature = '/api/uploads/cloudinary-signature';
   static const String uploadS3 = '/api/uploads/s3';
 
-  // Marketplace (CRUD de muebles + checkout directo)
+  // Catálogo y compras directas
   static const String marketplaceProducts = '/api/products';
   static const String marketplaceCheckout = '/api/products/checkout';
 
-  // Facturación / Recibos PDF (CU5: Backend4-PHP-Recibos via Gateway)
+  // Facturación y Recibos PDF
   static const String invoices = '/api/invoices';
 
-  // Inteligencia Artificial & MCP (CU1, CU3, CU4, CU7: Backend3-Python-IA-MCP via Gateway)
+  // Servicios de Inteligencia Artificial
   static const String aiEstimate = '/api/ai/estimate';
   static const String aiAgent = '/api/ai/agent';
   static const String aiReport = '/api/ai/report';

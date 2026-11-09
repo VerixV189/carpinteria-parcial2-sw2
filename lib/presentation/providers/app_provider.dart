@@ -536,7 +536,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── CU1: Clientes & Segmentación IA ───────────────────────────────────────
+  // ── Clientes y Segmentación ───────────────────────────────────────────────
 
   Future<bool> createClient({
     required String name,
@@ -608,7 +608,7 @@ class AppProvider extends ChangeNotifier {
     return clusters;
   }
 
-  // ── CU2: Carpinteros & Taller ─────────────────────────────────────────────
+  // ── Carpinteros y Taller ──────────────────────────────────────────────────
 
   Future<bool> createCarpenter({
     required String name,
@@ -683,7 +683,7 @@ class AppProvider extends ChangeNotifier {
     return _repository.getCarpenterWorkload(carpenterId);
   }
 
-  // ── CU3: Cotizaciones con IA & Negociación ────────────────────────────────
+  // ── Cotizaciones y Negociación ────────────────────────────────────────────
 
   Future<AiEstimateEntity> estimateFurniture({
     required String description,
@@ -822,7 +822,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // ── CU4: Pedidos, Pasos de Producción y Entregas ──────────────────────────
+  // ── Pedidos, Pasos de Producción y Entregas ───────────────────────────────
 
   Future<bool> createOrder({
     required String clientName,
@@ -988,7 +988,7 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // ── CU5: Facturas y Recibos PDF ───────────────────────────────────────────
+  // ── Facturas y Recibos PDF ────────────────────────────────────────────────
 
   Future<bool> createManualInvoice({
     required String clientName,
@@ -1025,7 +1025,7 @@ class AppProvider extends ChangeNotifier {
     return _repository.downloadInvoicePdf(invoiceId);
   }
 
-  // ── CU6: Pagos y Auditoría DynamoDB ───────────────────────────────────────
+  // ── Pagos y Registro de Transacciones ─────────────────────────────────────
 
   Future<PaymentResultEntity?> processPayment({
     required String quotationId,
@@ -1066,7 +1066,7 @@ class AppProvider extends ChangeNotifier {
     return _repository.getPaymentLogs(paymentId);
   }
 
-  // ── CU7: Agente IA Online & Reportes NL Online ────────────────────────────
+  // ── Asistente Inteligente y Reportes ──────────────────────────────────────
 
   Future<OnlineAgentReplyEntity> askOnlineAgent({
     required String query,
