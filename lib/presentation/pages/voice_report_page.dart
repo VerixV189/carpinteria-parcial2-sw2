@@ -123,8 +123,8 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
         _onlineReport?.narrative ?? _quickReport?.aiConclusion ?? '';
     final activeRows = _onlineReport?.rows ?? _quickReport?.rows ?? const [];
     final activeSource = _onlineReport != null
-        ? 'PostgreSQL Online (${_onlineReport!.source})'
-        : 'SQLite Local Offline';
+        ? 'Base de Datos Central'
+        : 'Base de Datos Local';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -171,7 +171,7 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Agente IA MCP Online + Voz Offline (CU7)',
+                            'Asistente por Voz e Informes Inteligentes',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -179,7 +179,7 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
                             ),
                           ),
                           Text(
-                            'Backend3 Python IA (/api/ai/agent • /api/ai/report) + Whisper ONNX + Qwen3 + SQLite.',
+                            'Consulta métricas del taller, inventario y ventas mediante comandos de voz o texto y exporta en PDF, Excel y CSV.',
                             style: TextStyle(
                               fontSize: 11.5,
                               color: Colors.white.withValues(alpha: 0.82),
@@ -202,8 +202,8 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
                     icon: const Icon(Icons.record_voice_over_rounded),
                     label: Text(
                       ready
-                          ? 'Abrir Consola de Voz Interactiva (Whisper + Qwen3)'
-                          : 'Cargar Modelos de Voz IA On-Device',
+                          ? 'Abrir Asistente de Voz Interactivo'
+                          : 'Configurar Reconocimiento de Voz',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -213,7 +213,7 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
           ),
           const SizedBox(height: 16),
 
-          // ── Agente Operativo MCP Online (/api/ai/agent) ────────────────────
+          // ── Consultas Operativas del Taller ────────────────────────────────
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -226,7 +226,7 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Agente Operativo MCP Online (/api/ai/agent)',
+                          'Consultas Rápidas de Taller e Inventario',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
@@ -278,7 +278,7 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
                           onSubmitted: (_) => _askOnlineMcpAgent(),
                           decoration: const InputDecoration(
                             hintText:
-                                'Pregunta al Agente MCP (pedidos, stock, entregas)...',
+                                'Pregunta por pedidos, materiales o entregas...',
                             isDense: true,
                           ),
                         ),
@@ -315,15 +315,14 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (_agentReply!.tool != null)
-                            Text(
-                              'Tool MCP: ${_agentReply!.tool} • Fuente: ${_agentReply!.source}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryWood,
-                              ),
+                          const Text(
+                            'Respuesta del Asistente',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryWood,
                             ),
+                          ),
                           const SizedBox(height: 4),
                           Text(
                             _agentReply!.answer,
@@ -339,13 +338,13 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
           ),
           const SizedBox(height: 16),
 
-          // ── Generador de Reportes NL (Online PostgreSQL vs Offline SQLite) ──
+          // ── Generador de Informes Ejecutivos ───────────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Expanded(
                 child: Text(
-                  'Reportes NL Text-to-SQL (PDF / Excel / CSV)',
+                  'Generador de Informes Ejecutivos (PDF / Excel / CSV)',
                   style: TextStyle(
                     fontSize: 15.5,
                     fontWeight: FontWeight.bold,
@@ -356,7 +355,7 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
               Row(
                 children: [
                   Text(
-                    _useOnlineBackend ? 'Online PG' : 'Local SQLite',
+                    _useOnlineBackend ? 'En línea' : 'Local',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -402,7 +401,7 @@ class _VoiceReportPageState extends State<VoiceReportPage> {
 
           _SuggestionTile(
             icon: Icons.monetization_on_outlined,
-            title: 'Ventas Totales del Mes (Online PostgreSQL / Local)',
+            title: 'Informe de Ventas Totales del Mes',
             subtitle:
                 'Consulta ingresos facturados y pedidos activos en lenguaje natural.',
             onTap: () => _runReport('¿Cuánto se vendió este mes?'),

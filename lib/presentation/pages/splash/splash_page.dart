@@ -295,27 +295,27 @@ class _SplashPageState extends State<SplashPage>
                   ScaleTransition(
                     scale: _pulseAnim,
                     child: Container(
-                      width: 120,
-                      height: 120,
+                      width: 136,
+                      height: 136,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFB74D).withOpacity(0.15),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFFFFB74D).withOpacity(0.4),
-                          width: 2,
+                          color: const Color(0xFFFFB74D).withValues(alpha: 0.6),
+                          width: 2.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFFF8C00).withOpacity(0.3),
+                            color: const Color(0xFFFF8C00).withValues(alpha: 0.3),
                             blurRadius: 30,
                             spreadRadius: 5,
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.handyman_rounded,
-                        size: 60,
-                        color: Color(0xFFFFB74D),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/logo_el_roble.png',
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),
@@ -323,7 +323,7 @@ class _SplashPageState extends State<SplashPage>
                   const SizedBox(height: 32),
 
                   const Text(
-                    'Carpintería Móvil',
+                    'Carpintería El Roble',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
@@ -335,10 +335,10 @@ class _SplashPageState extends State<SplashPage>
                   const SizedBox(height: 8),
 
                   Text(
-                    'Asistente de IA para carpintería',
+                    'Asistente inteligente y gestión de carpintería',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.55),
+                      color: Colors.white.withValues(alpha: 0.65),
                       letterSpacing: 0.5,
                     ),
                   ),

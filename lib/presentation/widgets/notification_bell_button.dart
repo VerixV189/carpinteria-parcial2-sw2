@@ -48,7 +48,7 @@ class NotificationBellButton extends StatelessWidget {
                 ],
               ),
               const Text(
-                'Conectado a WebSocket (/ws • /subscriptions) y sincronización de estados.',
+                'Avisos automáticos sobre avances de taller, cotizaciones, entregas y pagos.',
                 style: TextStyle(fontSize: 12, color: Colors.black54),
               ),
               const Divider(height: 20),

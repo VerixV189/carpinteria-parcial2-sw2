@@ -70,7 +70,7 @@ class _HomePageState extends State<HomePage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Nuevo Pedido de Producción (CU4)',
+                            'Nuevo Pedido de Producción',
                             style: TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
@@ -218,7 +218,7 @@ class _HomePageState extends State<HomePage> {
                             messenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Pedido registrado en GraphQL / SQLite',
+                                  'Pedido de producción registrado exitosamente',
                                 ),
                               ),
                             );
@@ -245,18 +245,27 @@ class _HomePageState extends State<HomePage> {
       return const ClientHomePage();
     }
     final user = provider.currentUser;
-    final roleTag = provider.isAdminRole ? 'ADMIN' : 'TALLER / CARPINTERO';
+    final roleTag = provider.isAdminRole ? 'Administración' : 'Taller Central';
 
     final titles = [
-      'Taller y Pedidos (CU2 • CU4)',
-      'Cotizaciones y Entregas (CU3 • CU4)',
-      'Gestión: Clientes, Carpinteros y Facturas',
-      'Agente IA y Reportes (CU7)',
-      'Mi Perfil y Gateway',
+      'Taller y Órdenes de Producción',
+      'Cotizaciones y Logística de Entregas',
+      'Clientes, Personal y Facturación',
+      'Asistente IA y Reportes',
+      'Mi Perfil',
     ];
 
     return Scaffold(
       appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ClipOval(
+            child: Image.asset(
+              'assets/images/logo_el_roble.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -265,9 +274,7 @@ class _HomePageState extends State<HomePage> {
               style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.bold),
             ),
             Text(
-              provider.isUsingMock
-                  ? '$roleTag • Modo Híbrido Local'
-                  : '$roleTag • Online (${AppConfig.baseUrl})',
+              'Carpintería El Roble • $roleTag',
               style: TextStyle(
                 fontSize: 11,
                 color: provider.isUsingMock
@@ -280,7 +287,7 @@ class _HomePageState extends State<HomePage> {
         actions: [
           const NotificationBellButton(),
           IconButton(
-            tooltip: 'Sincronizar con Backend',
+            tooltip: 'Actualizar datos',
             onPressed: provider.loadCarpentryData,
             icon: const Icon(Icons.sync_rounded),
           ),
@@ -345,7 +352,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// ── TAB 1: TALLER CARPINTERO (Frontend3 Svelte) + PEDIDOS (Frontend2 Angular) ─
+// ── TAB 1: TALLER Y ÓRDENES DE PRODUCCIÓN ───────────────────────────────────
 
 class _WorkshopAndOrdersTab extends StatelessWidget {
   final VoidCallback onAddOrder;
@@ -418,7 +425,7 @@ class _WorkshopAndOrdersTab extends StatelessWidget {
         .where((q) => q.status.toUpperCase() == 'DRAFT')
         .length;
 
-    // Buscar el siguiente paso de producción activo (equivalente a `siguienteAccion` en Svelte Taller)
+    // Buscar el siguiente paso de producción activo
     OrderEntity? nextStepOrder;
     ProductionStepEntity? nextStep;
     for (final o in orders) {
@@ -473,7 +480,7 @@ class _WorkshopAndOrdersTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
 
-        // ── Hero Card "Tu Siguiente Paso" (Frontend3-Svelte-Taller) ──────────
+        // ── Tarjeta "Siguiente Paso en Taller" ───────────────────────────────
         if (nextStep != null && nextStepOrder != null)
           Card(
             color: Colors.amber.shade50,
@@ -594,23 +601,23 @@ class _WorkshopAndOrdersTab extends StatelessWidget {
                           itemBuilder: (_) => const [
                             PopupMenuItem(
                               value: 'PENDING',
-                              child: Text('Estado: Pendiente (PENDING)'),
+                              child: Text('Estado: Pendiente'),
                             ),
                             PopupMenuItem(
                               value: 'APPROVED',
-                              child: Text('Estado: Aprobado (APPROVED)'),
+                              child: Text('Estado: Aprobado'),
                             ),
                             PopupMenuItem(
                               value: 'IN_PRODUCTION',
-                              child: Text('Estado: En fabricación (IN_PRODUCTION)'),
+                              child: Text('Estado: En fabricación'),
                             ),
                             PopupMenuItem(
                               value: 'READY',
-                              child: Text('Estado: Listo para entrega (READY)'),
+                              child: Text('Estado: Listo para entrega'),
                             ),
                             PopupMenuItem(
                               value: 'DELIVERED',
-                              child: Text('Estado: Entregado (DELIVERED)'),
+                              child: Text('Estado: Entregado'),
                             ),
                           ],
                           child: Container(
@@ -696,7 +703,7 @@ class _WorkshopAndOrdersTab extends StatelessWidget {
                       ],
                     ),
 
-                    // Pasos de producción (CU2 / CU4)
+                    // Pasos de producción
                     if (order.steps.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       ClipRRect(
@@ -806,7 +813,7 @@ class _WorkshopAndOrdersTab extends StatelessWidget {
   }
 }
 
-// ── TAB 2: COTIZACIONES DEL TALLER (CU3) + ENTREGAS Y LOGÍSTICA (CU4) ────────
+// ── TAB 2: COTIZACIONES DEL TALLER Y LOGÍSTICA DE ENTREGAS ──────────────────
 
 class _QuotesAndDeliveriesTab extends StatefulWidget {
   const _QuotesAndDeliveriesTab();
@@ -830,7 +837,7 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Enviar Cotización Formal al Cliente (CU3)'),
+        title: const Text('Enviar Cotización Formal al Cliente'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -913,7 +920,7 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Programar Entrega (CU4)'),
+          title: const Text('Programar Entrega'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1252,7 +1259,7 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
                                 children: [
                                   ActionChip(
                                     label: const Text(
-                                      'En Camino (IN_TRANSIT)',
+                                      'En Camino',
                                       style: TextStyle(fontSize: 11.5),
                                     ),
                                     onPressed: () => provider.updateDeliveryStatus(
@@ -1262,7 +1269,7 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
                                   ),
                                   ActionChip(
                                     label: const Text(
-                                      'Entregada (DELIVERED)',
+                                      'Entregada',
                                       style: TextStyle(fontSize: 11.5),
                                     ),
                                     onPressed: () => provider.updateDeliveryStatus(
@@ -1285,7 +1292,7 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
   }
 }
 
-// ── TAB 3: GESTIÓN DE CLIENTES (CU1), CARPINTEROS (CU2), FACTURAS (CU5) E INVENTARIO ─
+// ── TAB 3: GESTIÓN DE CLIENTES, CARPINTEROS, FACTURAS E INVENTARIO ──────────
 
 class _ManagementAndCatalogTab extends StatefulWidget {
   final ValueChanged<ProductEntity> onOrderProduct;
@@ -1298,7 +1305,7 @@ class _ManagementAndCatalogTab extends StatefulWidget {
 }
 
 class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
-  int _section = 0; // 0=Clientes+IA, 1=Carpinteros, 2=Facturas PDF, 3=Maderas
+  int _section = 0; // 0=Clientes, 1=Carpinteros, 2=Facturas PDF, 3=Maderas
 
   void _showClientDialog(BuildContext context, {ClientProfileEntity? existing}) {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
@@ -1310,7 +1317,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(existing == null ? 'Nuevo Cliente (CU1)' : 'Editar Cliente'),
+        title: Text(existing == null ? 'Nuevo Cliente' : 'Editar Cliente'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1402,7 +1409,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          existing == null ? 'Nuevo Carpintero (CU2)' : 'Editar Carpintero',
+          existing == null ? 'Nuevo Carpintero' : 'Editar Carpintero',
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -1488,7 +1495,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
   }
 
   void _showManualInvoiceDialog(BuildContext context) {
-    final nameCtrl = TextEditingController(text: 'Cliente Demo');
+    final nameCtrl = TextEditingController(text: 'Roberto Suárez');
     final nitCtrl = TextEditingController(text: '4829102015');
     final emailCtrl = TextEditingController(text: 'cliente@carpinteria.com');
     final descCtrl = TextEditingController(text: 'Mesa de Comedor Imperial en Roble');
@@ -1497,7 +1504,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Emitir Factura Oficial (CU5)'),
+        title: const Text('Emitir Factura Oficial'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1696,19 +1703,19 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
           child: Row(
             children: [
               ChoiceChip(
-                label: const Text('Clientes + IA (CU1)'),
+                label: const Text('Clientes y Segmentación'),
                 selected: _section == 0,
                 onSelected: (_) => setState(() => _section = 0),
               ),
               const SizedBox(width: 8),
               ChoiceChip(
-                label: const Text('Carpinteros (CU2)'),
+                label: const Text('Carpinteros'),
                 selected: _section == 1,
                 onSelected: (_) => setState(() => _section = 1),
               ),
               const SizedBox(width: 8),
               ChoiceChip(
-                label: const Text('Facturas PDF (CU5)'),
+                label: const Text('Facturas PDF'),
                 selected: _section == 2,
                 onSelected: (_) => setState(() => _section = 2),
               ),
@@ -1742,7 +1749,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                       await provider.runClientClustering();
                     },
                     icon: const Icon(Icons.hub_outlined, size: 18),
-                    label: const Text('Segmentar con IA (X-Means)'),
+                    label: const Text('Segmentar Clientes con IA'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1763,7 +1770,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Resultado Clustering IA X-Means (/api/ai/cluster-clients):',
+                        'Análisis Inteligente de Segmentos de Clientes:',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primaryDarkWood,
@@ -1772,7 +1779,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                       const SizedBox(height: 6),
                       ...provider.clientClusters.map(
                         (cl) => Text(
-                          '• Cluster #${cl.clusterId} (${cl.label}): ${cl.size} cliente(s)',
+                          '• Grupo #${cl.clusterId + 1} (${cl.label}): ${cl.size} cliente(s)',
                           style: const TextStyle(fontSize: 12.5),
                         ),
                       ),
@@ -1826,7 +1833,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
               child: FilledButton.icon(
                 onPressed: () => _showCarpenterDialog(context),
                 icon: const Icon(Icons.engineering_outlined),
-                label: const Text('Registrar Carpintero (CU2)'),
+                label: const Text('Registrar Carpintero'),
               ),
             ),
             const SizedBox(height: 10),
@@ -1877,7 +1884,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
               child: FilledButton.icon(
                 onPressed: () => _showManualInvoiceDialog(context),
                 icon: const Icon(Icons.post_add_rounded),
-                label: const Text('Emitir Factura Manual (CU5)'),
+                label: const Text('Emitir Factura Manual'),
               ),
             ),
             const SizedBox(height: 10),
@@ -2099,7 +2106,7 @@ class _AmountColumn extends StatelessWidget {
   }
 }
 
-// ── TAB 5: PERFIL Y CONEXIÓN AL GATEWAY ─────────────────────────────────────
+// ── TAB 5: PERFIL Y PREFERENCIAS DE CONEXIÓN ────────────────────────────────
 
 class _ProfileTab extends StatefulWidget {
   final UserEntity? user;
@@ -2140,17 +2147,17 @@ class _ProfileTabState extends State<_ProfileTab> {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: AppTheme.primaryWood,
-                    child: Text(
-                      (user?.name.isNotEmpty ?? false)
-                          ? user!.name[0].toUpperCase()
-                          : 'C',
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                  Container(
+                    width: 66,
+                    height: 66,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.primaryWood, width: 2),
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo_el_roble.png',
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
@@ -2183,7 +2190,9 @@ class _ProfileTabState extends State<_ProfileTab> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Rol: ${(user?.role ?? 'CARPENTER').toUpperCase()}',
+                            provider.isAdminRole
+                                ? 'Administración General'
+                                : 'Maestro Carpintero',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -2210,7 +2219,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                       Icon(Icons.cloud_sync_rounded, color: AppTheme.primaryWood),
                       SizedBox(width: 8),
                       Text(
-                        'Configuración de API Gateway (:3000)',
+                        'Servidor de Sincronización',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -2221,14 +2230,14 @@ class _ProfileTabState extends State<_ProfileTab> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Conecta a Backend2-NestJS-Gateway (/auth, /graphql, /api/quotations, /api/payments, /api/invoices, /api/ai/* y WebSocket /ws).',
+                    'Configura la dirección de red del servidor central para sincronizar pedidos, inventario, facturación y notificaciones.',
                     style: TextStyle(fontSize: 12.5, color: Colors.black54),
                   ),
                   const SizedBox(height: 14),
                   TextField(
                     controller: _urlController,
                     decoration: const InputDecoration(
-                      labelText: 'URL Base del Gateway (BASE_URL)',
+                      labelText: 'Dirección del Servidor',
                       prefixIcon: Icon(Icons.link),
                     ),
                   ),
@@ -2244,15 +2253,15 @@ class _ProfileTabState extends State<_ProfileTab> {
                             SnackBar(
                               content: Text(
                                 provider.isUsingMock
-                                    ? 'URL guardada (${AppConfig.baseUrl}). Sin respuesta remota, modo híbrido activo.'
-                                    : '¡Conectado exitosamente en modo Online a ${AppConfig.baseUrl}!',
+                                    ? 'Configuración guardada. Trabajando con respaldo local.'
+                                    : 'Conectado al servidor central exitosamente.',
                               ),
                             ),
                           );
                         }
                       },
                       icon: const Icon(Icons.save_outlined),
-                      label: const Text('Guardar y Probar Conexión Online'),
+                      label: const Text('Guardar y Sincronizar'),
                     ),
                   ),
                 ],

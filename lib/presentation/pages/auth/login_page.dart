@@ -48,21 +48,21 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _fillDemoClient() {
+  void _fillClientAccount() {
     setState(() {
       _emailController.text = 'cliente@carpinteria.com';
       _passwordController.text = 'cliente123';
     });
   }
 
-  void _fillDemoCarpenter() {
+  void _fillCarpenterAccount() {
     setState(() {
       _emailController.text = 'carpintero@carpinteria.com';
       _passwordController.text = 'carp123';
     });
   }
 
-  void _fillDemoAdmin() {
+  void _fillAdminAccount() {
     setState(() {
       _emailController.text = 'admin@carpinteria.com';
       _passwordController.text = 'admin123';
@@ -78,7 +78,7 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             Icon(Icons.dns_rounded, color: AppTheme.primaryWood),
             SizedBox(width: 8),
-            Text('Conexión Gateway API'),
+            Text('Servidor de Sincronización'),
           ],
         ),
         content: Column(
@@ -86,14 +86,14 @@ class _LoginPageState extends State<LoginPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'URL del API Gateway (Backend2 NestJS en puerto 3000). En emulador Android usa http://10.0.2.2:3000.',
+              'Ingresa la dirección del servidor central de Carpintería El Roble.',
               style: TextStyle(fontSize: 13, color: Colors.black54),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: urlCtrl,
               decoration: const InputDecoration(
-                labelText: 'BASE_URL (Gateway :3000)',
+                labelText: 'Dirección del servidor',
                 hintText: 'http://10.0.2.2:3000',
                 prefixIcon: Icon(Icons.link),
               ),
@@ -112,8 +112,8 @@ class _LoginPageState extends State<LoginPage> {
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('URL actualizada: ${AppConfig.baseUrl}'),
+                  const SnackBar(
+                    content: Text('Dirección del servidor actualizada'),
                   ),
                 );
               }
@@ -140,7 +140,7 @@ class _LoginPageState extends State<LoginPage> {
               Color(0xFF4A2508),
               AppTheme.warmCream,
             ],
-            stops: [0.0, 0.36, 0.36],
+            stops: [0.0, 0.38, 0.38],
           ),
         ),
         child: SafeArea(
@@ -151,37 +151,38 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   Align(
                     alignment: Alignment.topRight,
-                    child: TextButton.icon(
+                    child: IconButton(
+                      tooltip: 'Configuración de red',
                       onPressed: _showBackendConfigDialog,
-                      icon: const Icon(
-                        Icons.settings_ethernet,
-                        color: AppTheme.accentAmber,
-                        size: 18,
-                      ),
-                      label: Text(
-                        'Gateway: ${AppConfig.baseUrl}',
-                        style: const TextStyle(
-                          color: AppTheme.accentAmber,
-                          fontSize: 11.5,
-                        ),
+                      icon: Icon(
+                        Icons.tune_rounded,
+                        color: AppTheme.accentAmber.withValues(alpha: 0.8),
+                        size: 20,
                       ),
                     ),
                   ),
                   Container(
-                    width: 84,
-                    height: 84,
+                    width: 112,
+                    height: 112,
                     decoration: BoxDecoration(
-                      color: AppTheme.accentAmber.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppTheme.accentAmber.withValues(alpha: 0.6),
-                        width: 2,
+                        color: AppTheme.accentAmber.withValues(alpha: 0.7),
+                        width: 2.5,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
                     ),
-                    child: const Icon(
-                      Icons.handyman_rounded,
-                      size: 44,
-                      color: AppTheme.accentAmber,
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo_el_roble.png',
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -196,7 +197,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Portal Cliente • Taller Carpintero • Admin • IA Online/Offline',
+                    'Muebles a Medida • Ebanistería Fina • Diseño en Madera',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12.5,
@@ -227,7 +228,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'Conecta en modo Online con el Gateway (:3000) o híbrido local',
+                              'Ingresa con tu cuenta para acceder al catálogo, taller o pedidos',
                               style: TextStyle(fontSize: 12.5, color: Colors.black54),
                             ),
                             const SizedBox(height: 18),
@@ -237,7 +238,7 @@ class _LoginPageState extends State<LoginPage> {
                               validator: Validators.email,
                               decoration: const InputDecoration(
                                 labelText: 'Correo electrónico',
-                                hintText: 'cliente@carpinteria.com',
+                                hintText: 'correo@elroble.com',
                                 prefixIcon: Icon(Icons.email_outlined),
                               ),
                             ),
@@ -265,7 +266,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height: 12),
                             const Text(
-                              'Accesos rápidos (Usuarios Seed del Backend):',
+                              'Cuentas frecuentes:',
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
@@ -284,10 +285,10 @@ class _LoginPageState extends State<LoginPage> {
                                     color: AppTheme.primaryWood,
                                   ),
                                   label: const Text(
-                                    'Cliente (Portal)',
+                                    'Cliente',
                                     style: TextStyle(fontSize: 11.5),
                                   ),
-                                  onPressed: _fillDemoClient,
+                                  onPressed: _fillClientAccount,
                                 ),
                                 ActionChip(
                                   avatar: const Icon(
@@ -296,10 +297,10 @@ class _LoginPageState extends State<LoginPage> {
                                     color: AppTheme.primaryWood,
                                   ),
                                   label: const Text(
-                                    'Carpintero (Taller)',
+                                    'Taller',
                                     style: TextStyle(fontSize: 11.5),
                                   ),
-                                  onPressed: _fillDemoCarpenter,
+                                  onPressed: _fillCarpenterAccount,
                                 ),
                                 ActionChip(
                                   avatar: const Icon(
@@ -308,10 +309,10 @@ class _LoginPageState extends State<LoginPage> {
                                     color: AppTheme.primaryWood,
                                   ),
                                   label: const Text(
-                                    'Admin General',
+                                    'Administración',
                                     style: TextStyle(fontSize: 11.5),
                                   ),
-                                  onPressed: _fillDemoAdmin,
+                                  onPressed: _fillAdminAccount,
                                 ),
                               ],
                             ),

@@ -39,10 +39,10 @@ class PaymentAndInvoiceModals {
     required String description,
     required double amount,
   }) async {
-    final cardCtrl = TextEditingController(text: '4242 4242 4242 4242');
+    final cardCtrl = TextEditingController(text: '4532 8810 4242 4242');
     final holderCtrl = TextEditingController(
       text: AppScope.of(context).currentUser?.name.toUpperCase() ??
-          'CLIENTE DEMO',
+          'ROBERTO SUÁREZ',
     );
     final monthCtrl = TextEditingController(text: '12');
     final yearCtrl = TextEditingController(text: '2028');
@@ -83,7 +83,7 @@ class PaymentAndInvoiceModals {
                               const SizedBox(width: 10),
                               const Expanded(
                                 child: Text(
-                                  '¡Pago Capturado y Factura Emitida!',
+                                  '¡Pago Procesado y Factura Emitida!',
                                   style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.bold,
@@ -102,13 +102,13 @@ class PaymentAndInvoiceModals {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'ID Pago: ${result!.id}',
+                                    'Comprobante N°: ${result!.id}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                   Text(
-                                    'Transacción Gateway: ${result!.gatewayTransactionId}',
+                                    'N° de Referencia: ${result!.gatewayTransactionId}',
                                   ),
                                   Text(
                                     'Monto Pagado: Bs ${result!.amount.toStringAsFixed(2)} (${result!.currency})',
@@ -122,7 +122,7 @@ class PaymentAndInvoiceModals {
                           ),
                           const SizedBox(height: 12),
                           const Text(
-                            'Logs de Auditoría en AWS DynamoDB (PaymentLogs):',
+                            'Detalle de Verificación Bancaria:',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -139,7 +139,7 @@ class PaymentAndInvoiceModals {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                '[${l.stage}] ts:${l.timestamp} -> ${l.detail}',
+                                '[${l.stage}] ${l.detail}',
                                 style: const TextStyle(
                                   fontFamily: 'monospace',
                                   fontSize: 11,
@@ -171,7 +171,7 @@ class PaymentAndInvoiceModals {
                                   ),
                                   SizedBox(width: 8),
                                   Text(
-                                    'Pasarela de Pago Segura (CU6)',
+                                    'Pasarela de Pago Segura',
                                     style: TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.bold,
@@ -223,7 +223,7 @@ class PaymentAndInvoiceModals {
                             controller: cardCtrl,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
-                              labelText: 'Número de Tarjeta (Prueba: 4242...)',
+                              labelText: 'Número de Tarjeta',
                               prefixIcon: Icon(Icons.credit_card),
                             ),
                           ),

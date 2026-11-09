@@ -35,15 +35,24 @@ class _ClientHomePageState extends State<ClientHomePage> {
     final cartCount = provider.cartItemCount;
 
     final titles = [
-      'Portal de Muebles',
-      'Cotizar con IA y Mis Pedidos',
+      'Catálogo de Muebles',
+      'Cotizar a Medida y Mis Pedidos',
       'Mis Recibos y Carrito',
-      'Agente IA (Online / Offline)',
+      'Asistente Virtual',
       'Mi Perfil',
     ];
 
     return Scaffold(
       appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ClipOval(
+            child: Image.asset(
+              'assets/images/logo_el_roble.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -53,8 +62,8 @@ class _ClientHomePageState extends State<ClientHomePage> {
             ),
             Text(
               provider.isUsingMock
-                  ? 'Hola, ${provider.currentUser?.name ?? "Cliente"} • Modo Local'
-                  : 'Hola, ${provider.currentUser?.name ?? "Cliente"} • Online (${AppConfig.baseUrl})',
+                  ? 'Hola, ${provider.currentUser?.name ?? "Cliente"} • Modo Sin Conexión'
+                  : 'Hola, ${provider.currentUser?.name ?? "Cliente"} • Carpintería El Roble',
               style: TextStyle(
                 fontSize: 11,
                 color: provider.isUsingMock
@@ -206,7 +215,7 @@ class _MarketplaceTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Muebles en Madera Certificada (Catálogo Web)',
+                'Catálogo de Muebles en Madera Certificada',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14.5,
@@ -434,7 +443,7 @@ class _MarketplaceTab extends StatelessWidget {
   }
 }
 
-// ── 2. COTIZAR CON IA (3 PASOS CU3) + NEGOCIACIÓN + MIS COTIZACIONES ────────
+// ── 2. COTIZAR CON IA + NEGOCIACIÓN + MIS COTIZACIONES ──────────────────────
 
 class _QuotationsTab extends StatefulWidget {
   final ProductEntity? preselectedProduct;
@@ -463,7 +472,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
   bool _isEstimating = false;
   AiEstimateEntity? _aiEstimate;
 
-  // Placeholder 1x1 JPEG base64 cuando el usuario adjunta foto de referencia para YOLOv8/OCR
+  // Imagen de referencia codificada en base64 para estimación visual
   static const String _sampleReferenceBase64 =
       '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
 
@@ -570,7 +579,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Proponer Contraoferta (CU3)'),
+        title: const Text('Proponer Contraoferta'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -632,7 +641,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Asistente de Cotización IA en 3 pasos (CU3) ────────────────────
+          // ── Asistente de Cotización IA en 3 pasos ──────────────────────────
           Card(
             elevation: 3,
             child: Padding(
@@ -646,7 +655,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Cotizar Mueble con Inteligencia Artificial (CU3)',
+                          'Cotizar Mueble a Medida con IA',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -751,7 +760,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                           ),
                           label: Text(
                             _hasAttachedReferencePhoto
-                                ? 'Foto de referencia lista (YOLOv8/OCR)'
+                                ? 'Foto de referencia adjuntada'
                                 : 'Adjuntar Foto / Plano de Referencia',
                             style: const TextStyle(fontSize: 12),
                           ),
@@ -789,14 +798,14 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'IA detectó: ${_aiEstimate!.furnitureType.toUpperCase()}',
+                                  'Mueble identificado: ${_aiEstimate!.furnitureType.toUpperCase()}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: AppTheme.primaryDarkWood,
                                   ),
                                 ),
                                 Text(
-                                  'Confianza ML: ${(_aiEstimate!.confidence * 100).toStringAsFixed(0)}% • Madera: $_selectedWood',
+                                  'Precisión estimada: ${(_aiEstimate!.confidence * 100).toStringAsFixed(0)}% • Madera: $_selectedWood',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Colors.black54,
@@ -910,7 +919,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
           ),
           const SizedBox(height: 20),
 
-          // ── Lista de Cotizaciones y Negociación (CU3 + CU6) ─────────────────
+          // ── Lista de Cotizaciones y Negociación ────────────────────────────
           const Text(
             'Mis Cotizaciones y Seguimiento de Negociación',
             style: TextStyle(
@@ -1099,7 +1108,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                                 amount: q.payableAmount,
                               ),
                               icon: const Icon(Icons.credit_card, size: 16),
-                              label: const Text('Pagar con Tarjeta (CU6)'),
+                              label: const Text('Pagar con Tarjeta'),
                             )
                           else if (isConverted)
                             const Chip(
@@ -1126,7 +1135,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
   }
 }
 
-// ── 3. MIS RECIBOS / FACTURAS PDF (CU5) Y CARRITO DE COMPRAS ────────────────
+// ── 3. MIS RECIBOS / FACTURAS PDF Y CARRITO DE COMPRAS ──────────────────────
 
 class _CartAndInvoicesTab extends StatefulWidget {
   final VoidCallback onOrderCompleted;
@@ -1294,13 +1303,13 @@ class _CartAndInvoicesTabState extends State<_CartAndInvoicesTab> {
 
           const SizedBox(height: 22),
 
-          // ── Sección Mis Recibos / Facturas PDF (CU5) ────────────────────────
+          // ── Sección Mis Recibos / Facturas PDF ─────────────────────────────
           const Row(
             children: [
               Icon(Icons.picture_as_pdf_rounded, color: AppTheme.primaryWood),
               SizedBox(width: 8),
               Text(
-                'Mis Recibos y Facturas Oficiales (CU5)',
+                'Mis Recibos y Facturas Oficiales',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1359,7 +1368,7 @@ class _CartAndInvoicesTabState extends State<_CartAndInvoicesTab> {
   }
 }
 
-// ── 4. AGENTE IA PARA CLIENTES (ONLINE MCP /api/ai/agent + OFFLINE QWEN3) ───
+// ── 4. ASISTENTE VIRTUAL PARA CLIENTES ──────────────────────────────────────
 
 class _ClientAssistantTab extends StatefulWidget {
   const _ClientAssistantTab();
@@ -1380,7 +1389,7 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
     {
       'sender': 'bot',
       'text':
-          '¡Hola! Soy el Agente IA de Carpintería El Roble (CU7). En modo Online me conecto a Backend3-Python-IA-MCP (/api/ai/agent) para consultar tus pedidos reales, cotizaciones, disponibilidad de entregas y catálogo.',
+          '¡Hola! Soy el asistente virtual de Carpintería El Roble. Puedo ayudarte a consultar el estado de tus pedidos, cotizaciones, disponibilidad de entregas y nuestro catálogo de muebles.',
     },
   ];
 
@@ -1408,15 +1417,13 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
       try {
         final res = await provider.askOnlineAgent(
           query: text,
-          sessionId: 'mobile-client-${provider.currentUser?.email ?? "demo"}',
+          sessionId: 'mobile-client-${provider.currentUser?.email ?? "cliente"}',
         );
         if (!mounted) return;
-        final toolBadge =
-            res.tool != null ? '\n\n[Herramienta MCP: ${res.tool}]' : '';
         setState(() {
           _messages.add({
             'sender': 'bot',
-            'text': '${res.answer}$toolBadge',
+            'text': res.answer,
           });
           _isThinking = false;
         });
@@ -1504,8 +1511,8 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
               Expanded(
                 child: Text(
                   _useOnlineAgent
-                      ? 'Modo Online: Agente IA MCP (/api/ai/agent)'
-                      : 'Modo Offline: Qwen3 1.7B Local en Dispositivo',
+                      ? 'Asistente Conectado en Línea'
+                      : 'Asistente Local sin Internet',
                   style: const TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ),
@@ -1653,7 +1660,7 @@ class _ClientAssistantTabState extends State<_ClientAssistantTab> {
                   controller: _controller,
                   onSubmitted: (_) => _sendQuestion(),
                   decoration: const InputDecoration(
-                    hintText: 'Pregunta al Agente IA por tu pedido o mueble...',
+                    hintText: 'Pregunta por tu pedido, entrega o mueble...',
                     isDense: true,
                   ),
                 ),
@@ -1713,17 +1720,20 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: AppTheme.primaryWood,
-                    child: Text(
-                      (user?.name.isNotEmpty ?? false)
-                          ? user!.name[0].toUpperCase()
-                          : 'C',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppTheme.accentAmber,
+                        width: 2,
+                      ),
+                    ),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo_el_roble.png',
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
@@ -1755,7 +1765,7 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Rol: ${(user?.role ?? "CLIENT").toUpperCase()}',
+                            'Cliente Registrado • Carpintería El Roble',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -1778,7 +1788,7 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Servidor API Gateway (Backend2 NestJS :3000)',
+                    'Servidor de Sincronización',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: AppTheme.primaryDarkWood,
@@ -1788,7 +1798,7 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
                   TextField(
                     controller: _urlController,
                     decoration: const InputDecoration(
-                      labelText: 'BASE_URL',
+                      labelText: 'Dirección del Servidor',
                       prefixIcon: Icon(Icons.link),
                     ),
                   ),
@@ -1803,7 +1813,7 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
                         messenger.showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Gateway actualizado: ${AppConfig.baseUrl}',
+                              'Servidor actualizado: ${AppConfig.baseUrl}',
                             ),
                           ),
                         );
