@@ -48,6 +48,27 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  Future<void> _submitBiometricLogin() async {
+    final provider = AppScope.of(context);
+    final success = await provider.loginWithBiometrics(
+      preferredEmail: _emailController.text.trim(),
+      preferredPassword: _passwordController.text,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushReplacementNamed(AppRouter.home);
+    } else if (provider.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage!),
+          backgroundColor: Colors.orange.shade900,
+        ),
+      );
+    }
+  }
+
   void _fillClientAccount() {
     setState(() {
       _emailController.text = 'cliente@carpinteria.com';
@@ -333,7 +354,75 @@ class _LoginPageState extends State<LoginPage> {
                                     : const Text('Ingresar al Sistema'),
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(color: Colors.brown.shade200),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  child: Text(
+                                    'o acceso directo con huella',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: Colors.brown.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(color: Colors.brown.shade200),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              height: 52,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppTheme.primaryDarkWood,
+                                  backgroundColor:
+                                      AppTheme.accentAmber.withValues(alpha: 0.14),
+                                  side: const BorderSide(
+                                    color: AppTheme.primaryWood,
+                                    width: 1.5,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                onPressed:
+                                    provider.isLoading ? null : _submitBiometricLogin,
+                                icon: const Icon(
+                                  Icons.fingerprint_rounded,
+                                  size: 28,
+                                  color: AppTheme.primaryWood,
+                                ),
+                                label: Text(
+                                  provider.savedBiometricAccount != null
+                                      ? 'Ingresar con Huella (${provider.savedBiometricAccount!['name']})'
+                                      : 'Ingresar con Huella Digital',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Sesión activa válida por 24 h • Huella vinculada por 7 días',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: Colors.black45,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

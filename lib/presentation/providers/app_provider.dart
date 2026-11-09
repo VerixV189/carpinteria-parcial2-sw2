@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
+import 'package:carpinteria_movil_sw2/core/services/biometric_auth_service.dart';
 import 'package:carpinteria_movil_sw2/core/services/realtime_notification_service.dart';
 import 'package:carpinteria_movil_sw2/core/storage/local_storage.dart';
 import 'package:carpinteria_movil_sw2/core/storage/sqlite_database.dart';
@@ -11,6 +12,7 @@ import 'package:carpinteria_movil_sw2/domain/repositories/repository.dart';
 
 class AppProvider extends ChangeNotifier {
   final CarpentryRepository _repository;
+  final BiometricAuthService _biometricService = BiometricAuthService();
   late final RealtimeNotificationService _realtimeService;
   Timer? _pollingTimer;
 
@@ -382,6 +384,14 @@ class AppProvider extends ChangeNotifier {
 
     try {
       _currentUser = await _repository.login(email: email, password: password);
+      if (_currentUser != null) {
+        await LocalStorage.saveBiometricCredentials(
+          email: email,
+          password: password,
+          name: _currentUser!.name,
+          role: _currentUser!.role,
+        );
+      }
       await loadCarpentryData();
       _startRealtimeServices();
       _isLoading = false;
@@ -393,6 +403,40 @@ class AppProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Map<String, dynamic>? get savedBiometricAccount =>
+      LocalStorage.getBiometricCredentials();
+
+  DateTime? get sessionExpiresAt => LocalStorage.getSessionExpiresAt();
+
+  Future<bool> loginWithBiometrics({
+    String? preferredEmail,
+    String? preferredPassword,
+  }) async {
+    _errorMessage = null;
+    final saved = LocalStorage.getBiometricCredentials();
+    final email = (preferredEmail != null && preferredEmail.trim().isNotEmpty)
+        ? preferredEmail.trim()
+        : (saved?['email'] as String?) ?? 'cliente@carpinteria.com';
+    final password =
+        (preferredPassword != null && preferredPassword.isNotEmpty)
+            ? preferredPassword
+            : (saved?['password'] as String?) ?? 'cliente123';
+    final displayName = (saved?['name'] as String?) ?? email;
+
+    final bioResult = await _biometricService.authenticateWithFingerprint(
+      reason:
+          'Verifica tu huella digital para ingresar como $displayName a Carpintería El Roble',
+    );
+
+    if (!bioResult.authenticated) {
+      _errorMessage = bioResult.error;
+      notifyListeners();
+      return false;
+    }
+
+    return login(email, password);
   }
 
   Future<bool> register({
@@ -414,6 +458,14 @@ class AppProvider extends ChangeNotifier {
         password: password,
         role: role,
       );
+      if (_currentUser != null) {
+        await LocalStorage.saveBiometricCredentials(
+          email: email,
+          password: password,
+          name: _currentUser!.name,
+          role: _currentUser!.role,
+        );
+      }
       await loadCarpentryData();
       _startRealtimeServices();
       _isLoading = false;
