@@ -389,13 +389,13 @@ class QuotationEntity {
       case 'DRAFT':
         return 'En revisión';
       case 'QUOTED':
-        return 'Cotizada por el taller';
+        return 'Cotizada';
       case 'APPROVED':
-        return 'Aceptada (Lista para pago)';
+        return 'Aprobada';
       case 'REJECTED':
         return 'Rechazada';
       case 'CONVERTED':
-        return 'Pagada / En producción';
+        return 'Pagada / En taller';
       default:
         return status;
     }

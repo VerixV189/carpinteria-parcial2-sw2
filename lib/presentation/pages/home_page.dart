@@ -586,14 +586,19 @@ class _WorkshopAndOrdersTab extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Pedido #${order.id} • ${order.deliveryType == "PICKUP" ? "Recojo en taller" : "Envío a domicilio"}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black54,
-                            fontSize: 12,
+                        Expanded(
+                          child: Text(
+                            'Pedido #${order.id} • ${order.deliveryType == "PICKUP" ? "Recojo en taller" : "Envío a domicilio"}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         PopupMenuButton<String>(
                           onSelected: (newStatus) {
                             provider.updateOrderStatus(order.id, newStatus);
@@ -1030,12 +1035,16 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
             children: [
               Expanded(
                 child: ChoiceChip(
-                  label: Text('Cotizaciones (${quotations.length})'),
+                  label: Text(
+                    'Cotizaciones (${quotations.length})',
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   selected: _subTab == 0,
                   selectedColor: AppTheme.primaryWood,
                   labelStyle: TextStyle(
                     color: _subTab == 0 ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
                   onSelected: (_) => setState(() => _subTab = 0),
                 ),
@@ -1043,12 +1052,16 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
               const SizedBox(width: 8),
               Expanded(
                 child: ChoiceChip(
-                  label: Text('Entregas y Logística (${deliveries.length})'),
+                  label: Text(
+                    'Entregas (${deliveries.length})',
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   selected: _subTab == 1,
                   selectedColor: AppTheme.primaryWood,
                   labelStyle: TextStyle(
                     color: _subTab == 1 ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
                   onSelected: (_) => setState(() => _subTab = 1),
                 ),
@@ -1071,25 +1084,52 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Text(
-                                  'Cliente: ${q.clientId}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black54,
+                                Expanded(
+                                  child: Text(
+                                    'Cliente: ${q.clientId}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black54,
+                                    ),
                                   ),
                                 ),
-                                Chip(
-                                  label: Text(
-                                    q.statusLabel,
-                                    style: const TextStyle(fontSize: 11),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  flex: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryWood
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: AppTheme.primaryWood
+                                            .withValues(alpha: 0.35),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      q.statusLabel,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryDarkWood,
+                                      ),
+                                    ),
                                   ),
-                                  visualDensity: VisualDensity.compact,
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 6),
                             Text(
                               q.description,
                               style: const TextStyle(
@@ -1218,13 +1258,18 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    'Entrega #${del.id} (Pedido #${del.orderId})',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                  Expanded(
+                                    child: Text(
+                                      'Entrega #${del.id} (Pedido #${del.orderId})',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
+                                  const SizedBox(width: 8),
                                   Chip(
                                     label: Text(
                                       del.statusLabel,

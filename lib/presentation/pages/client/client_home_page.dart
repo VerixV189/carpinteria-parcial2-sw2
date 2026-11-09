@@ -957,14 +957,19 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Cotización #${q.id.substring(0, q.id.length.clamp(0, 8))}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black54,
+                          Expanded(
+                            child: Text(
+                              'Cotización #${q.id.substring(0, q.id.length.clamp(0, 8))}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black54,
+                              ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
