@@ -64,6 +64,7 @@ class AppProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isUsingMock => _repository.isUsingMock;
+  bool get isForcedOffline => AppConfig.forceOfflineMode;
   String get selectedCategory => _selectedCategory;
   String get searchQuery => _searchQuery;
 
@@ -351,6 +352,7 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> initializeSession() async {
     await LocalStorage.init();
+    AppConfig.setForceOfflineMode(LocalStorage.getForceOfflineMode());
     final savedUrl = LocalStorage.getCustomBaseUrl();
     if (savedUrl != null && savedUrl.isNotEmpty) {
       final normalized = AppConfig.normalizeBaseUrl(savedUrl);
@@ -362,8 +364,28 @@ class AppProvider extends ChangeNotifier {
     _currentUser = await _repository.getSavedSession();
     if (_currentUser != null) {
       await loadCarpentryData();
+      if (!AppConfig.forceOfflineMode) {
+        _startRealtimeServices();
+      }
+    }
+    notifyListeners();
+  }
+
+  Future<void> setOfflineMode(bool offline) async {
+    AppConfig.setForceOfflineMode(offline);
+    await LocalStorage.saveForceOfflineMode(offline);
+    if (offline) {
+      _stopRealtimeServices();
+    } else if (isAuthenticated) {
       _startRealtimeServices();
     }
+    await loadCarpentryData();
+    pushNotification(
+      title: offline ? 'Modo Sin Conexión Activado' : 'Modo En Línea Conectado',
+      body: offline
+          ? 'Trabajando con la base de datos local del dispositivo (SQLite / Local).'
+          : 'Sincronización activa con el servidor central (${AppConfig.baseUrl}).',
+    );
     notifyListeners();
   }
 
@@ -827,6 +849,7 @@ class AppProvider extends ChangeNotifier {
     required double estimatedPrice,
     int quantity = 1,
     String? photoUrl,
+    String? imageBase64,
     AiEstimateEntity? aiEstimate,
     String deliveryType = 'DELIVERY',
     String? deliveryAddress,
@@ -834,6 +857,15 @@ class AppProvider extends ChangeNotifier {
     double? longitude,
   }) async {
     try {
+      var resolvedPhotoUrl = photoUrl;
+      if ((resolvedPhotoUrl == null || resolvedPhotoUrl.isEmpty) &&
+          imageBase64 != null &&
+          imageBase64.isNotEmpty) {
+        resolvedPhotoUrl = await _repository.uploadImageToS3(
+          imageBase64,
+          fileName: 'cotizacion_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+      }
       final clientId = (_currentUser?.email.isNotEmpty == true)
           ? _currentUser!.email
           : (_currentUser?.id ?? 'cliente@carpinteria.com');
@@ -843,7 +875,7 @@ class AppProvider extends ChangeNotifier {
         woodType: woodType,
         estimatedPrice: estimatedPrice,
         quantity: quantity,
-        photoUrl: photoUrl,
+        photoUrl: resolvedPhotoUrl,
         aiEstimate: aiEstimate,
         deliveryType: deliveryType,
         deliveryAddress: deliveryAddress,

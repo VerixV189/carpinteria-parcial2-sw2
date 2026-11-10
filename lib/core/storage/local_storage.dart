@@ -10,6 +10,7 @@ class LocalStorage {
   static const String _biometricAccountsByEmailKey =
       'biometric_accounts_by_email';
   static const String _baseUrlKey = 'custom_base_url';
+  static const String _forceOfflineKey = 'force_offline_mode';
   static const String _registeredUsersKey = 'local_registered_users';
 
   /// Duración estándar de la sesión activa abierta (24 horas)
@@ -178,6 +179,15 @@ class LocalStorage {
 
   static String? getCustomBaseUrl() {
     return _prefs?.getString(_baseUrlKey);
+  }
+
+  static Future<void> saveForceOfflineMode(bool value) async {
+    await init();
+    await _prefs!.setBool(_forceOfflineKey, value);
+  }
+
+  static bool getForceOfflineMode() {
+    return _prefs?.getBool(_forceOfflineKey) ?? false;
   }
 
   static List<Map<String, dynamic>> getRegisteredUsers() {

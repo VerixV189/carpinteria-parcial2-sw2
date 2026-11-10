@@ -2,6 +2,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
   static String _customBaseUrl = '';
+  static bool _forceOfflineMode = false;
+
+  static bool get forceOfflineMode => _forceOfflineMode;
+
+  static void setForceOfflineMode(bool value) {
+    _forceOfflineMode = value;
+  }
 
   static Future<void> init() async {
     try {

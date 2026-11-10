@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
 import 'package:carpinteria_movil_sw2/core/services/llm_service.dart';
 import 'package:carpinteria_movil_sw2/core/services/model_installer.dart';
@@ -471,10 +474,120 @@ class _QuotationsTabState extends State<_QuotationsTab> {
   bool _hasAttachedReferencePhoto = false;
   bool _isEstimating = false;
   AiEstimateEntity? _aiEstimate;
+  final ImagePicker _imagePicker = ImagePicker();
+  Uint8List? _selectedPhotoBytes;
+  String? _selectedPhotoBase64;
+  String? _selectedPhotoSourceLabel;
 
-  // Imagen de referencia codificada en base64 para estimación visual
-  static const String _sampleReferenceBase64 =
-      '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+  Future<void> _pickReferencePhoto(ImageSource source) async {
+    try {
+      final XFile? file = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 78,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _selectedPhotoBytes = bytes;
+        _selectedPhotoBase64 = base64Encode(bytes);
+        _selectedPhotoSourceLabel =
+            source == ImageSource.camera ? 'Cámara' : 'Galería';
+        _hasAttachedReferencePhoto = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo abrir la imagen: $e'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
+  void _showPhotoSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Adjuntar Foto o Plano de Referencia',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryDarkWood,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: AppTheme.primaryWood,
+                  foregroundColor: Colors.white,
+                  child: Icon(Icons.camera_alt_rounded),
+                ),
+                title: const Text('Tomar foto con la Cámara'),
+                subtitle: const Text(
+                  'Fotografía el espacio, mueble o boceto con tu cámara',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickReferencePhoto(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: AppTheme.primaryDarkWood,
+                  foregroundColor: Colors.white,
+                  child: Icon(Icons.photo_library_rounded),
+                ),
+                title: const Text('Elegir desde la Galería'),
+                subtitle: const Text(
+                  'Selecciona una imagen o diseño guardado en tu teléfono',
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickReferencePhoto(ImageSource.gallery);
+                },
+              ),
+              if (_hasAttachedReferencePhoto)
+                ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.red.shade100,
+                    foregroundColor: Colors.red.shade700,
+                    child: const Icon(Icons.delete_outline_rounded),
+                  ),
+                  title: Text(
+                    'Quitar foto adjuntada',
+                    style: TextStyle(color: Colors.red.shade700),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() {
+                      _selectedPhotoBytes = null;
+                      _selectedPhotoBase64 = null;
+                      _selectedPhotoSourceLabel = null;
+                      _hasAttachedReferencePhoto = false;
+                    });
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void didUpdateWidget(covariant _QuotationsTab oldWidget) {
@@ -514,7 +627,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
     final est = await provider.estimateFurniture(
       description: _descCtrl.text.trim(),
       woodType: _selectedWood,
-      imageBase64: _hasAttachedReferencePhoto ? _sampleReferenceBase64 : null,
+      imageBase64: _hasAttachedReferencePhoto ? _selectedPhotoBase64 : null,
     );
     if (!mounted) return;
     setState(() {
@@ -539,6 +652,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
       woodType: _selectedWood,
       estimatedPrice: price,
       aiEstimate: _aiEstimate,
+      imageBase64: _hasAttachedReferencePhoto ? _selectedPhotoBase64 : null,
       deliveryType: _deliveryType,
       deliveryAddress: _deliveryType == 'DELIVERY'
           ? _addressCtrl.text.trim()
@@ -556,6 +670,9 @@ class _QuotationsTabState extends State<_QuotationsTab> {
         _descCtrl.clear();
         _aiEstimate = null;
         _hasAttachedReferencePhoto = false;
+        _selectedPhotoBytes = null;
+        _selectedPhotoBase64 = null;
+        _selectedPhotoSourceLabel = null;
       });
       widget.onClearPreselected();
       messenger.showSnackBar(
@@ -743,12 +860,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _hasAttachedReferencePhoto =
-                                  !_hasAttachedReferencePhoto;
-                            });
-                          },
+                          onPressed: _showPhotoSourceSheet,
                           icon: Icon(
                             _hasAttachedReferencePhoto
                                 ? Icons.check_circle_rounded
@@ -760,8 +872,9 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                           ),
                           label: Text(
                             _hasAttachedReferencePhoto
-                                ? 'Foto de referencia adjuntada'
-                                : 'Adjuntar Foto / Plano de Referencia',
+                                ? 'Foto adjuntada (${_selectedPhotoSourceLabel ?? "Imagen"})'
+                                : 'Cámara / Galería (Foto o Plano)',
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontSize: 12),
                           ),
                         ),
@@ -780,6 +893,62 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                       ),
                     ],
                   ),
+                  if (_selectedPhotoBytes != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.brown.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.brown.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.memory(
+                              _selectedPhotoBytes!,
+                              width: 68,
+                              height: 68,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Imagen lista para enviar (${_selectedPhotoSourceLabel ?? "Referencia"})',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12.5,
+                                    color: AppTheme.primaryDarkWood,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'Se analizará con IA y se adjuntará a tu cotización para el taller.',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Cambiar o quitar foto',
+                            onPressed: _showPhotoSourceSheet,
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              color: AppTheme.primaryWood,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   if (_aiEstimate != null) ...[
                     const SizedBox(height: 12),
@@ -1899,40 +2068,151 @@ class _ClientProfileTabState extends State<_ClientProfileTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Servidor de Sincronización',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryDarkWood,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        provider.isUsingMock
+                            ? Icons.cloud_off_rounded
+                            : Icons.cloud_done_rounded,
+                        color: provider.isUsingMock
+                            ? Colors.orange.shade800
+                            : Colors.green.shade700,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Modo de Conexión y Sincronización',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryDarkWood,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: provider.isUsingMock
+                              ? Colors.orange.shade100
+                              : Colors.green.shade100,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          provider.isUsingMock ? 'OFFLINE' : 'ONLINE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: provider.isUsingMock
+                                ? Colors.orange.shade900
+                                : Colors.green.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      provider.isForcedOffline
+                          ? 'Modo Offline Activo (Base Local)'
+                          : 'Modo Online Activo (Servidor en Red)',
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      provider.isForcedOffline
+                          ? 'Desconectado del servidor. Operando 100% con almacenamiento local del teléfono.'
+                          : 'Conectado al servidor central para sincronizar en tiempo real.',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    value: !provider.isForcedOffline,
+                    activeTrackColor: Colors.green.shade600,
+                    onChanged: (online) async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await provider.setOfflineMode(!online);
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            online
+                                ? 'Modo Online activado: conectado a ${AppConfig.baseUrl}'
+                                : 'Modo Offline activado: trabajando con base de datos local',
+                          ),
+                          backgroundColor: online
+                              ? Colors.green.shade700
+                              : Colors.orange.shade800,
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 16),
                   TextField(
                     controller: _urlController,
+                    enabled: !provider.isForcedOffline,
                     decoration: const InputDecoration(
                       labelText: 'Dirección del Servidor',
                       prefixIcon: Icon(Icons.link),
                     ),
                   ),
                   const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.tonalIcon(
-                      onPressed: () async {
-                        final messenger = ScaffoldMessenger.of(context);
-                        await provider.updateBackendUrl(_urlController.text);
-                        _urlController.text = AppConfig.baseUrl;
-                        messenger.showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Servidor actualizado: ${AppConfig.baseUrl}',
-                            ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final nextOffline = !provider.isForcedOffline;
+                            await provider.setOfflineMode(nextOffline);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  nextOffline
+                                      ? 'Desconectado: Modo Offline activado'
+                                      : 'Conectado: Modo Online activado',
+                                ),
+                              ),
+                            );
+                          },
+                          icon: Icon(
+                            provider.isForcedOffline
+                                ? Icons.wifi_rounded
+                                : Icons.wifi_off_rounded,
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('Actualizar Conexión'),
-                    ),
+                          label: Text(
+                            provider.isForcedOffline
+                                ? 'Conectar Online'
+                                : 'Pasar a Offline',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          onPressed: provider.isForcedOffline
+                              ? null
+                              : () async {
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
+                                  await provider
+                                      .updateBackendUrl(_urlController.text);
+                                  _urlController.text = AppConfig.baseUrl;
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Servidor actualizado: ${AppConfig.baseUrl}',
+                                      ),
+                                    ),
+                                  );
+                                },
+                          icon: const Icon(Icons.save_outlined),
+                          label: const Text('Guardar URL'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

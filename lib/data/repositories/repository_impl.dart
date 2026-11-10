@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
 import 'package:carpinteria_movil_sw2/core/errors/app_exception.dart';
 import 'package:carpinteria_movil_sw2/core/storage/local_storage.dart';
 import 'package:carpinteria_movil_sw2/data/datasources/local/local_data_source.dart';
@@ -21,7 +22,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         _local = local ?? LocalDataSource();
 
   @override
-  bool get isUsingMock => _isUsingMock;
+  bool get isUsingMock => AppConfig.forceOfflineMode || _isUsingMock;
 
   UserModel? _currentSavedUser() {
     final json = LocalStorage.getUser();
@@ -147,8 +148,16 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
       _remote.checkoutMarketplace(payload);
 
   @override
-  Future<String> uploadImageToS3(String base64, {String fileName = 'mueble.jpg'}) =>
-      _remote.uploadImageToS3(base64: base64, fileName: fileName);
+  Future<String> uploadImageToS3(
+    String base64, {
+    String fileName = 'mueble.jpg',
+  }) async {
+    try {
+      return await _remote.uploadImageToS3(base64: base64, fileName: fileName);
+    } catch (_) {
+      return 'data:image/jpeg;base64,$base64';
+    }
+  }
 
   @override
   Future<List<WoodMaterialEntity>> getMaterials() async {

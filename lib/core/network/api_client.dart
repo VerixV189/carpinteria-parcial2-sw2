@@ -58,6 +58,9 @@ class ApiClient {
     bool withAuth = true,
     Duration? timeout,
   }) async {
+    if (AppConfig.forceOfflineMode) {
+      throw const NetworkException('Modo sin conexión activo.');
+    }
     try {
       final response = await _client
           .get(
@@ -80,6 +83,9 @@ class ApiClient {
     bool withAuth = true,
     Duration? timeout,
   }) async {
+    if (AppConfig.forceOfflineMode) {
+      throw const NetworkException('Modo sin conexión activo.');
+    }
     try {
       final headers = _buildHeaders(
         withAuth: withAuth,
@@ -113,6 +119,9 @@ class ApiClient {
     bool withAuth = true,
     Duration? timeout,
   }) async {
+    if (AppConfig.forceOfflineMode) {
+      throw const NetworkException('Modo sin conexión activo.');
+    }
     try {
       final response = await _client
           .post(
@@ -136,6 +145,9 @@ class ApiClient {
     bool withAuth = true,
     Duration? timeout,
   }) async {
+    if (AppConfig.forceOfflineMode) {
+      throw const NetworkException('Modo sin conexión activo.');
+    }
     try {
       final response = await _client
           .put(
@@ -158,6 +170,9 @@ class ApiClient {
     bool withAuth = true,
     Duration? timeout,
   }) async {
+    if (AppConfig.forceOfflineMode) {
+      throw const NetworkException('Modo sin conexión activo.');
+    }
     try {
       final response = await _client
           .delete(

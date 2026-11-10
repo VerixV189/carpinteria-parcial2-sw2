@@ -105,56 +105,97 @@ class _LoginPageState extends State<LoginPage> {
 
   void _showBackendConfigDialog() {
     final urlCtrl = TextEditingController(text: AppConfig.baseUrl);
+    bool isOffline = AppConfig.forceOfflineMode;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.dns_rounded, color: AppTheme.primaryWood),
-            SizedBox(width: 8),
-            Text('Servidor de Sincronización'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Ingresa la dirección del servidor central de Carpintería El Roble.',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: urlCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Dirección del servidor',
-                hintText: 'http://10.0.2.2:3000',
-                prefixIcon: Icon(Icons.link),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.dns_rounded, color: AppTheme.primaryWood),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Conexión y Servidor',
+                  style: TextStyle(fontSize: 17),
+                ),
               ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  isOffline
+                      ? 'Modo Offline (Base Local)'
+                      : 'Modo Online (Servidor en Red)',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                  ),
+                ),
+                subtitle: Text(
+                  isOffline
+                      ? 'Trabajando sin conexión a internet.'
+                      : 'Conectado al servidor central.',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                value: !isOffline,
+                activeTrackColor: Colors.green.shade600,
+                onChanged: (online) async {
+                  setDialogState(() => isOffline = !online);
+                  final provider = AppScope.of(context);
+                  await provider.setOfflineMode(!online);
+                },
+              ),
+              const Divider(),
+              const Text(
+                'Dirección del servidor central de Carpintería El Roble:',
+                style: TextStyle(fontSize: 12.5, color: Colors.black54),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: urlCtrl,
+                enabled: !isOffline,
+                decoration: const InputDecoration(
+                  labelText: 'Dirección del servidor',
+                  hintText: 'http://10.0.2.2:3000',
+                  prefixIcon: Icon(Icons.link),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final provider = AppScope.of(context);
+                if (!isOffline) {
+                  await provider.updateBackendUrl(urlCtrl.text);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isOffline
+                            ? 'Modo Offline activado (Almacenamiento local)'
+                            : 'Modo Online activado (${AppConfig.baseUrl})',
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Guardar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final provider = AppScope.of(context);
-              await provider.updateBackendUrl(urlCtrl.text);
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Dirección del servidor actualizada'),
-                  ),
-                );
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
       ),
     );
   }

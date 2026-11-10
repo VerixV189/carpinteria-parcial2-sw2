@@ -2366,55 +2366,154 @@ class _ProfileTabState extends State<_ProfileTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.cloud_sync_rounded, color: AppTheme.primaryWood),
-                      SizedBox(width: 8),
-                      Text(
-                        'Servidor de Sincronización',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryDarkWood,
+                      Icon(
+                        provider.isUsingMock
+                            ? Icons.cloud_off_rounded
+                            : Icons.cloud_sync_rounded,
+                        color: provider.isUsingMock
+                            ? Colors.orange.shade800
+                            : AppTheme.primaryWood,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Modo de Conexión y Sincronización',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryDarkWood,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: provider.isUsingMock
+                              ? Colors.orange.shade100
+                              : Colors.green.shade100,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          provider.isUsingMock ? 'OFFLINE' : 'ONLINE',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: provider.isUsingMock
+                                ? Colors.orange.shade900
+                                : Colors.green.shade900,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Configura la dirección de red del servidor central para sincronizar pedidos, inventario, facturación y notificaciones.',
-                    style: TextStyle(fontSize: 12.5, color: Colors.black54),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      provider.isForcedOffline
+                          ? 'Modo Offline Activo (Base Local)'
+                          : 'Modo Online Activo (Servidor en Red)',
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      provider.isForcedOffline
+                          ? 'Desconectado del servidor. Operando 100% con almacenamiento local del teléfono.'
+                          : 'Conectado al servidor central para sincronizar pedidos, inventario y notificaciones.',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    value: !provider.isForcedOffline,
+                    activeTrackColor: Colors.green.shade600,
+                    onChanged: (online) async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await provider.setOfflineMode(!online);
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            online
+                                ? 'Modo Online activado: conectado a ${AppConfig.baseUrl}'
+                                : 'Modo Offline activado: trabajando con base de datos local',
+                          ),
+                          backgroundColor: online
+                              ? Colors.green.shade700
+                              : Colors.orange.shade800,
+                        ),
+                      );
+                    },
                   ),
-                  const SizedBox(height: 14),
+                  const Divider(height: 16),
                   TextField(
                     controller: _urlController,
+                    enabled: !provider.isForcedOffline,
                     decoration: const InputDecoration(
                       labelText: 'Dirección del Servidor',
                       prefixIcon: Icon(Icons.link),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () async {
-                        await provider.updateBackendUrl(_urlController.text);
-                        _urlController.text = AppConfig.baseUrl;
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                provider.isUsingMock
-                                    ? 'Configuración guardada. Trabajando con respaldo local.'
-                                    : 'Conectado al servidor central exitosamente.',
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final nextOffline = !provider.isForcedOffline;
+                            await provider.setOfflineMode(nextOffline);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  nextOffline
+                                      ? 'Desconectado: Modo Offline activado'
+                                      : 'Conectado: Modo Online activado',
+                                ),
                               ),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('Guardar y Sincronizar'),
-                    ),
+                            );
+                          },
+                          icon: Icon(
+                            provider.isForcedOffline
+                                ? Icons.wifi_rounded
+                                : Icons.wifi_off_rounded,
+                          ),
+                          label: Text(
+                            provider.isForcedOffline
+                                ? 'Conectar Online'
+                                : 'Pasar a Offline',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: provider.isForcedOffline
+                              ? null
+                              : () async {
+                                  await provider
+                                      .updateBackendUrl(_urlController.text);
+                                  _urlController.text = AppConfig.baseUrl;
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          provider.isUsingMock
+                                              ? 'Configuración guardada. Trabajando con respaldo local.'
+                                              : 'Conectado al servidor central exitosamente.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                          icon: const Icon(Icons.save_outlined),
+                          label: const Text('Guardar URL'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
