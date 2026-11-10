@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
+import 'package:carpinteria_movil_sw2/core/services/location_service.dart';
 import 'package:carpinteria_movil_sw2/domain/entities/entity.dart';
 import 'package:carpinteria_movil_sw2/presentation/pages/client/client_home_page.dart';
 import 'package:carpinteria_movil_sw2/presentation/pages/voice_report_page.dart';
@@ -920,6 +921,8 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
     final notesCtrl = TextEditingController(text: 'Llamar al cliente antes de salir');
     String timeSlot = 'MORNING';
     String deliveryType = 'DELIVERY';
+    double? selectedLat = -17.7548;
+    double? selectedLng = -63.1792;
 
     showDialog(
       context: context,
@@ -980,6 +983,35 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
                   },
                 ),
                 const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final picked =
+                          await LocationService.showLocationPickerModal(
+                        ctx,
+                        initialLat: selectedLat,
+                        initialLng: selectedLng,
+                        initialAddress: addressCtrl.text.trim(),
+                      );
+                      if (picked != null) {
+                        setDialogState(() {
+                          selectedLat = picked.latitude;
+                          selectedLng = picked.longitude;
+                          addressCtrl.text = picked.address;
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.my_location_rounded, size: 18),
+                    label: Text(
+                      selectedLat != null
+                          ? 'GPS: ${selectedLat!.toStringAsFixed(4)}, ${selectedLng!.toStringAsFixed(4)}'
+                          : 'Obtener GPS / Elegir en Mapa',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: addressCtrl,
                   decoration: const InputDecoration(
@@ -1010,6 +1042,8 @@ class _QuotesAndDeliveriesTabState extends State<_QuotesAndDeliveriesTab> {
                   address: addressCtrl.text.trim(),
                   notes: notesCtrl.text.trim(),
                   deliveryType: deliveryType,
+                  latitude: selectedLat,
+                  longitude: selectedLng,
                 );
                 if (ctx.mounted) Navigator.pop(ctx);
               },

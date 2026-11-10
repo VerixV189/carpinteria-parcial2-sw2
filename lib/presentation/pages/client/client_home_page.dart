@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:carpinteria_movil_sw2/core/config/app_config.dart';
 import 'package:carpinteria_movil_sw2/core/services/llm_service.dart';
+import 'package:carpinteria_movil_sw2/core/services/location_service.dart';
 import 'package:carpinteria_movil_sw2/core/services/model_installer.dart';
 import 'package:carpinteria_movil_sw2/core/services/whisper_service.dart';
 import 'package:carpinteria_movil_sw2/domain/entities/entity.dart';
@@ -1041,6 +1042,87 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                   ),
                   if (_deliveryType == 'DELIVERY') ...[
                     const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              try {
+                                final loc = await LocationService
+                                    .getCurrentDeviceLocation();
+                                if (!mounted || loc == null) return;
+                                setState(() {
+                                  _latCtrl.text =
+                                      loc.latitude.toStringAsFixed(6);
+                                  _lngCtrl.text =
+                                      loc.longitude.toStringAsFixed(6);
+                                  if (loc.address.isNotEmpty) {
+                                    _addressCtrl.text = loc.address;
+                                  }
+                                });
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Ubicación GPS obtenida: ${loc.latitude.toStringAsFixed(4)}, ${loc.longitude.toStringAsFixed(4)}',
+                                    ),
+                                    backgroundColor: Colors.green.shade700,
+                                  ),
+                                );
+                              } catch (e) {
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'No se pudo obtener ubicación: $e',
+                                    ),
+                                    backgroundColor: Colors.red.shade700,
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.my_location_rounded,
+                              size: 18,
+                              color: AppTheme.primaryWood,
+                            ),
+                            label: const Text(
+                              'Usar mi GPS actual',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton.tonalIcon(
+                            onPressed: () async {
+                              final picked = await LocationService
+                                  .showLocationPickerModal(
+                                context,
+                                initialLat: double.tryParse(_latCtrl.text),
+                                initialLng: double.tryParse(_lngCtrl.text),
+                                initialAddress: _addressCtrl.text.trim(),
+                              );
+                              if (!mounted || picked == null) return;
+                              setState(() {
+                                _latCtrl.text =
+                                    picked.latitude.toStringAsFixed(6);
+                                _lngCtrl.text =
+                                    picked.longitude.toStringAsFixed(6);
+                                _addressCtrl.text = picked.address;
+                              });
+                            },
+                            icon: const Icon(Icons.map_outlined, size: 18),
+                            label: const Text(
+                              'Elegir en Mapa',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                     TextField(
                       controller: _addressCtrl,
                       decoration: const InputDecoration(
@@ -1058,6 +1140,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Latitud GPS',
+                              prefixIcon: Icon(Icons.explore_outlined, size: 18),
                               isDense: true,
                             ),
                           ),
@@ -1069,6 +1152,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Longitud GPS',
+                              prefixIcon: Icon(Icons.explore_outlined, size: 18),
                               isDense: true,
                             ),
                           ),
@@ -1427,6 +1511,30 @@ class _CartAndInvoicesTabState extends State<_CartAndInvoicesTab> {
                       ],
                     ),
                     const SizedBox(height: 8),
+                    if (_deliveryType == 'DELIVERY') ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            final picked =
+                                await LocationService.showLocationPickerModal(
+                              context,
+                              initialAddress: _notesCtrl.text.trim(),
+                            );
+                            if (!mounted || picked == null) return;
+                            setState(() {
+                              _notesCtrl.text =
+                                  '${picked.address} (GPS: ${picked.latitude.toStringAsFixed(4)}, ${picked.longitude.toStringAsFixed(4)})';
+                            });
+                          },
+                          icon: const Icon(Icons.my_location_rounded, size: 18),
+                          label: const Text(
+                            'Obtener mi ubicación GPS o elegir en Mapa',
+                            style: TextStyle(fontSize: 12.5),
+                          ),
+                        ),
+                      ),
+                    ],
                     TextField(
                       controller: _notesCtrl,
                       decoration: const InputDecoration(
