@@ -474,6 +474,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
   String _deliveryType = 'DELIVERY'; // 'DELIVERY' | 'PICKUP'
   bool _hasAttachedReferencePhoto = false;
   bool _isEstimating = false;
+  bool _isSubmitting = false;
   AiEstimateEntity? _aiEstimate;
   final ImagePicker _imagePicker = ImagePicker();
   Uint8List? _selectedPhotoBytes;
@@ -638,52 +639,86 @@ class _QuotationsTabState extends State<_QuotationsTab> {
   }
 
   Future<void> _submitQuotation() async {
-    if (_descCtrl.text.trim().isEmpty) return;
+    if (_isSubmitting) return;
+    if (_descCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Por favor describe primero el mueble y sus medidas en el Paso 1',
+          ),
+        ),
+      );
+      return;
+    }
     final provider = AppScope.of(context);
     final messenger = ScaffoldMessenger.of(context);
 
-    if (_aiEstimate == null) {
-      await _calculateAiEstimate();
-    }
-    if (!mounted) return;
+    setState(() => _isSubmitting = true);
+    try {
+      if (_aiEstimate == null) {
+        final est = await provider.estimateFurniture(
+          description: _descCtrl.text.trim(),
+          woodType: _selectedWood,
+          imageBase64: _hasAttachedReferencePhoto ? _selectedPhotoBase64 : null,
+        );
+        if (!mounted) return;
+        setState(() => _aiEstimate = est);
+      }
+      if (!mounted) return;
 
-    final price = _aiEstimate?.estimatedPrice ?? 1850.0;
-    final created = await provider.createQuotation(
-      description: _descCtrl.text.trim(),
-      woodType: _selectedWood,
-      estimatedPrice: price,
-      aiEstimate: _aiEstimate,
-      imageBase64: _hasAttachedReferencePhoto ? _selectedPhotoBase64 : null,
-      deliveryType: _deliveryType,
-      deliveryAddress: _deliveryType == 'DELIVERY'
-          ? _addressCtrl.text.trim()
-          : 'Recojo en taller',
-      latitude: _deliveryType == 'DELIVERY'
-          ? double.tryParse(_latCtrl.text)
-          : null,
-      longitude: _deliveryType == 'DELIVERY'
-          ? double.tryParse(_lngCtrl.text)
-          : null,
-    );
-
-    if (created != null) {
-      setState(() {
-        _descCtrl.clear();
-        _aiEstimate = null;
-        _hasAttachedReferencePhoto = false;
-        _selectedPhotoBytes = null;
-        _selectedPhotoBase64 = null;
-        _selectedPhotoSourceLabel = null;
-      });
-      widget.onClearPreselected();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '¡Cotización #${created.id.substring(0, created.id.length.clamp(0, 8))} enviada al taller!',
-          ),
-          backgroundColor: Colors.green.shade700,
-        ),
+      final price = _aiEstimate?.estimatedPrice ?? 1850.0;
+      final created = await provider.createQuotation(
+        description: _descCtrl.text.trim(),
+        woodType: _selectedWood,
+        estimatedPrice: price,
+        aiEstimate: _aiEstimate,
+        imageBase64: _hasAttachedReferencePhoto ? _selectedPhotoBase64 : null,
+        deliveryType: _deliveryType,
+        deliveryAddress: _deliveryType == 'DELIVERY'
+            ? _addressCtrl.text.trim()
+            : 'Recojo en taller',
+        latitude: _deliveryType == 'DELIVERY'
+            ? double.tryParse(_latCtrl.text)
+            : null,
+        longitude: _deliveryType == 'DELIVERY'
+            ? double.tryParse(_lngCtrl.text)
+            : null,
       );
+
+      if (!mounted) return;
+      if (created != null) {
+        setState(() {
+          _descCtrl.clear();
+          _aiEstimate = null;
+          _hasAttachedReferencePhoto = false;
+          _selectedPhotoBytes = null;
+          _selectedPhotoBase64 = null;
+          _selectedPhotoSourceLabel = null;
+        });
+        widget.onClearPreselected();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              '¡Cotización #${created.id.substring(0, created.id.length.clamp(0, 8))} enviada al taller!',
+            ),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              provider.errorMessage ??
+                  'No se pudo enviar la cotización. Intenta nuevamente.',
+            ),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -1162,9 +1197,22 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                   ],
                   const SizedBox(height: 14),
                   ElevatedButton.icon(
-                    onPressed: _submitQuotation,
-                    icon: const Icon(Icons.send_rounded),
-                    label: const Text('Enviar Solicitud al Taller'),
+                    onPressed: _isSubmitting ? null : _submitQuotation,
+                    icon: _isSubmitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.send_rounded),
+                    label: Text(
+                      _isSubmitting
+                          ? 'Enviando Solicitud...'
+                          : 'Enviar Solicitud al Taller',
+                    ),
                   ),
                 ],
               ),

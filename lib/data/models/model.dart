@@ -499,8 +499,13 @@ class QuotationModel extends QuotationEntity {
       photoUrl: json['photoUrl']?.toString(),
       description: desc,
       woodType: wood,
-      totalAmount:
-          double.tryParse((json['totalAmount'] ?? json['payableAmount'] ?? 0).toString()) ?? 0.0,
+      totalAmount: double.tryParse((json['totalAmount'] ??
+                      json['payableAmount'] ??
+                      firstItem?['unitPrice'] ??
+                      firstItem?['estimatedPrice'] ??
+                      0)
+                  .toString()) ??
+          0.0,
       finalAmount: json['finalAmount'] != null
           ? double.tryParse(json['finalAmount'].toString())
           : null,
@@ -511,11 +516,11 @@ class QuotationModel extends QuotationEntity {
           : null,
       deliveryType: (deliv?['type'] ?? json['deliveryType'] ?? 'DELIVERY').toString(),
       deliveryAddress: (deliv?['address'] ?? json['deliveryAddress'] ?? '').toString(),
-      deliveryLatitude: deliv?['latitude'] != null
-          ? double.tryParse(deliv!['latitude'].toString())
+      deliveryLatitude: (deliv?['lat'] ?? deliv?['latitude']) != null
+          ? double.tryParse((deliv?['lat'] ?? deliv?['latitude']).toString())
           : null,
-      deliveryLongitude: deliv?['longitude'] != null
-          ? double.tryParse(deliv!['longitude'].toString())
+      deliveryLongitude: (deliv?['lng'] ?? deliv?['longitude']) != null
+          ? double.tryParse((deliv?['lng'] ?? deliv?['longitude']).toString())
           : null,
       aiEstimate: aiEst,
       createdAt: (json['createdAt'] ?? json['updatedAt'] ?? 'Hoy').toString(),

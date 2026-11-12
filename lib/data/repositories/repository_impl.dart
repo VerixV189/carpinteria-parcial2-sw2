@@ -456,7 +456,12 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     try {
       final list = await _remote.getQuotations(status: status);
       _isUsingMock = false;
-      return list;
+      final localOnly = _local
+          .getQuotations(status: status)
+          .where((lq) =>
+              lq.id.startsWith('Q-') && !list.any((rq) => rq.id == lq.id))
+          .toList();
+      return [...localOnly, ...list];
     } catch (_) {
       return _local.getQuotations(status: status);
     }
@@ -476,30 +481,34 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     double? latitude,
     double? longitude,
   }) async {
+    final furnitureType = (aiEstimate?.furnitureType.isNotEmpty == true)
+        ? aiEstimate!.furnitureType.toUpperCase()
+        : 'OTHER';
+    final cleanAddress = (deliveryAddress ?? '').trim();
+    final deliveryPayload = deliveryType == 'PICKUP'
+        ? <String, dynamic>{'type': 'PICKUP'}
+        : <String, dynamic>{
+            'type': 'DELIVERY',
+            if (cleanAddress.isNotEmpty) 'address': cleanAddress,
+            'lat': ?latitude,
+            'lng': ?longitude,
+          };
+
     final payload = <String, dynamic>{
       'clientId': clientId,
-      'photoUrl': photoUrl,
-      'aiEstimate': aiEstimate != null
-          ? {
-              'furnitureType': aiEstimate.furnitureType,
-              'confidence': aiEstimate.confidence,
-              'estimatedPrice': aiEstimate.estimatedPrice,
-              'currency': aiEstimate.currency,
-              'factors': aiEstimate.factors,
-            }
-          : null,
-      'delivery': {
-        'type': deliveryType,
-        'address': deliveryType == 'DELIVERY' ? (deliveryAddress ?? '') : null,
-        'latitude': deliveryType == 'DELIVERY' ? latitude : null,
-        'longitude': deliveryType == 'DELIVERY' ? longitude : null,
-      },
+      if (photoUrl != null &&
+          photoUrl.isNotEmpty &&
+          !photoUrl.startsWith('data:'))
+        'photoUrl': photoUrl,
+      'requestEstimate': true,
+      'delivery': deliveryPayload,
       'items': [
         {
           'description': description,
-          'woodType': woodType,
+          'furnitureType': furnitureType,
+          'woodType': woodType.toUpperCase(),
           'quantity': quantity,
-          'estimatedPrice': estimatedPrice,
+          'unitPrice': estimatedPrice,
         },
       ],
     };
@@ -507,6 +516,7 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     try {
       final created = await _remote.createQuotation(payload);
       _isUsingMock = false;
+      _local.addOrUpdateQuotation(created);
       return created;
     } catch (_) {
       final localQ = QuotationModel(

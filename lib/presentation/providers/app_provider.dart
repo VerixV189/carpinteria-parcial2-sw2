@@ -882,7 +882,7 @@ class AppProvider extends ChangeNotifier {
         latitude: latitude,
         longitude: longitude,
       );
-      _quotations = [created, ..._quotations];
+      _quotations = [created, ..._quotations.where((q) => q.id != created.id)];
       pushNotification(
         title: 'Nueva cotización solicitada',
         body:
@@ -891,6 +891,9 @@ class AppProvider extends ChangeNotifier {
         status: created.status,
       );
       await loadCarpentryData();
+      if (_quotations.every((q) => q.id != created.id)) {
+        _quotations = [created, ..._quotations];
+      }
       notifyListeners();
       return created;
     } catch (e) {
