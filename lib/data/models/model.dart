@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:carpinteria_movil_sw2/domain/entities/entity.dart';
 
 class UserModel extends UserEntity {
@@ -10,24 +11,53 @@ class UserModel extends UserEntity {
     super.token,
   });
 
+  static Map<String, dynamic> _decodeJwtPayload(String? jwt) {
+    if (jwt == null || !jwt.contains('.')) return const {};
+    try {
+      final parts = jwt.split('.');
+      if (parts.length < 2) return const {};
+      final normalized = base64Url.normalize(parts[1]);
+      final decoded = utf8.decode(base64Url.decode(normalized));
+      final map = jsonDecode(decoded);
+      if (map is Map<String, dynamic>) return map;
+    } catch (_) {}
+    return const {};
+  }
+
   factory UserModel.fromJson(Map<String, dynamic> json, {String? tokenOverride}) {
     final userObj = json['user'] is Map<String, dynamic>
         ? json['user'] as Map<String, dynamic>
         : json;
-    final rawRole = (userObj['role'] ?? userObj['rol'] ?? 'CARPENTER').toString();
+    final resolvedToken = tokenOverride ??
+        (json['accessToken'] ??
+                json['token'] ??
+                json['access_token'] ??
+                userObj['accessToken'] ??
+                userObj['token'])
+            ?.toString();
+    final jwtClaims = _decodeJwtPayload(resolvedToken);
+
+    final resolvedEmail = (userObj['email'] ??
+            userObj['correo'] ??
+            jwtClaims['email'] ??
+            '')
+        .toString();
+    final rawRole = (userObj['role'] ??
+            userObj['rol'] ??
+            jwtClaims['role'] ??
+            'CLIENT')
+        .toString();
+    final fallbackName = resolvedEmail.isNotEmpty
+        ? resolvedEmail.split('@').first
+        : 'Usuario Carpintería';
+
     return UserModel(
-      id: (userObj['id'] ?? userObj['_id'] ?? '1').toString(),
-      name: (userObj['name'] ?? userObj['nombre'] ?? 'Usuario Carpintería').toString(),
-      email: (userObj['email'] ?? userObj['correo'] ?? '').toString(),
+      id: (userObj['id'] ?? userObj['_id'] ?? jwtClaims['sub'] ?? '1').toString(),
+      name: (userObj['name'] ?? userObj['nombre'] ?? fallbackName).toString(),
+      email: resolvedEmail,
       phone: (userObj['phone'] ?? userObj['telefono'] ?? '').toString(),
       role: rawRole,
-      token: tokenOverride ??
-          (json['accessToken'] ??
-                  json['token'] ??
-                  json['access_token'] ??
-                  userObj['accessToken'] ??
-                  userObj['token'])
-              ?.toString(),
+      token: resolvedToken,
     );
   }
 

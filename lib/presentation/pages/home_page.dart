@@ -1391,6 +1391,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
     final emailCtrl = TextEditingController(text: existing?.email ?? '');
     final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
     final addressCtrl = TextEditingController(text: existing?.address ?? '');
+    final passCtrl = TextEditingController();
     String segment = existing?.segment ?? 'REGULAR';
 
     showDialog(
@@ -1433,6 +1434,17 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                   if (v != null) segment = v;
                 },
               ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: passCtrl,
+                decoration: InputDecoration(
+                  labelText: existing == null
+                      ? 'Contraseña de acceso (por defecto: cliente123)'
+                      : 'Nueva contraseña (opcional)',
+                  hintText: 'Si lo dejas vacío será: cliente123',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                ),
+              ),
             ],
           ),
         ),
@@ -1444,6 +1456,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
           ElevatedButton(
             onPressed: () async {
               final provider = AppScope.of(context);
+              final rawPw = passCtrl.text.trim();
               if (existing == null) {
                 await provider.createClient(
                   name: nameCtrl.text.trim(),
@@ -1451,6 +1464,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                   phone: phoneCtrl.text.trim(),
                   address: addressCtrl.text.trim(),
                   segment: segment,
+                  password: rawPw.isNotEmpty ? rawPw : 'cliente123',
                 );
               } else {
                 await provider.updateClient(
@@ -1460,6 +1474,8 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                   phone: phoneCtrl.text.trim(),
                   address: addressCtrl.text.trim(),
                   segment: segment,
+                  password: rawPw.isNotEmpty ? rawPw : null,
+                  previousEmail: existing.email,
                 );
               }
               if (ctx.mounted) Navigator.pop(ctx);
@@ -1483,6 +1499,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
     final rateCtrl = TextEditingController(
       text: (existing?.hourlyRate ?? 50.0).toStringAsFixed(0),
     );
+    final passCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -1533,6 +1550,17 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: passCtrl,
+                decoration: InputDecoration(
+                  labelText: existing == null
+                      ? 'Contraseña al Taller (por defecto: carp123)'
+                      : 'Nueva contraseña (opcional)',
+                  hintText: 'Si lo dejas vacío será: carp123',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                ),
+              ),
             ],
           ),
         ),
@@ -1544,6 +1572,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
           ElevatedButton(
             onPressed: () async {
               final provider = AppScope.of(context);
+              final rawPw = passCtrl.text.trim();
               if (existing == null) {
                 await provider.createCarpenter(
                   name: nameCtrl.text.trim(),
@@ -1552,6 +1581,7 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                   specialty: specCtrl.text.trim(),
                   yearsExperience: int.tryParse(expCtrl.text) ?? 3,
                   hourlyRate: double.tryParse(rateCtrl.text) ?? 45.0,
+                  password: rawPw.isNotEmpty ? rawPw : 'carp123',
                 );
               } else {
                 await provider.updateCarpenter(
@@ -1562,6 +1592,8 @@ class _ManagementAndCatalogTabState extends State<_ManagementAndCatalogTab> {
                   specialty: specCtrl.text.trim(),
                   yearsExperience: int.tryParse(expCtrl.text) ?? 3,
                   hourlyRate: double.tryParse(rateCtrl.text) ?? 45.0,
+                  password: rawPw.isNotEmpty ? rawPw : null,
+                  previousEmail: existing.email,
                 );
               }
               if (ctx.mounted) Navigator.pop(ctx);

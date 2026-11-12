@@ -405,6 +405,8 @@ class LocalDataSource {
 
   Future<UserModel> loginLocal(String email, String password) async {
     final cleanEmail = email.trim().toLowerCase();
+
+    // 1. Verificar usuarios registrados o sincronizados localmente
     final registered = LocalStorage.getRegisteredUsers();
     for (final u in registered) {
       if ((u['email'] as String).toLowerCase() == cleanEmail) {
@@ -416,7 +418,83 @@ class LocalDataSource {
       }
     }
 
-    if (password.length >= 4) {
+    // 2. Cuentas semilla principales del sistema (SEED_USERS)
+    if (cleanEmail == 'admin@carpinteria.com') {
+      if (password != 'admin123') {
+        throw const AuthException('Contraseña incorrecta para la cuenta de Administrador.');
+      }
+      return const UserModel(
+        id: 'USR-ADMIN-01',
+        name: 'Dirección General',
+        email: 'admin@carpinteria.com',
+        phone: '+591 70012345',
+        role: 'ADMIN',
+        token: 'mock-jwt-token-admin',
+      );
+    }
+    if (cleanEmail == 'carpintero@carpinteria.com') {
+      if (password != 'carp123' && password != '123456') {
+        throw const AuthException('Contraseña incorrecta para la cuenta de Carpintero.');
+      }
+      return const UserModel(
+        id: 'CARP-1',
+        name: 'Héctor Villarroel',
+        email: 'carpintero@carpinteria.com',
+        phone: '+591 72100991',
+        role: 'CARPENTER',
+        token: 'mock-jwt-token-carpenter',
+      );
+    }
+    if (cleanEmail == 'cliente@carpinteria.com') {
+      if (password != 'cliente123' && password != '123456') {
+        throw const AuthException('Contraseña incorrecta para la cuenta de Cliente.');
+      }
+      return const UserModel(
+        id: 'CLI-1',
+        name: 'Roberto Suárez',
+        email: 'cliente@carpinteria.com',
+        phone: '+591 70011223',
+        role: 'CLIENT',
+        token: 'mock-jwt-token-client',
+      );
+    }
+
+    // 3. Carpinteros registrados en el listado del taller (clave por defecto: carp123 o 123456)
+    for (final carp in _mockCarpenters) {
+      if (carp.email.trim().toLowerCase() == cleanEmail) {
+        if (password == 'carp123' || password == '123456' || password.length >= 4) {
+          return UserModel(
+            id: carp.id,
+            name: carp.name,
+            email: carp.email,
+            phone: carp.phone,
+            role: 'CARPENTER',
+            token: 'mock-jwt-token-${carp.id}',
+          );
+        }
+        throw const AuthException('Contraseña incorrecta (clave por defecto: carp123).');
+      }
+    }
+
+    // 4. Clientes registrados en cartera (clave por defecto: cliente123 o 123456)
+    for (final cli in _mockClients) {
+      if (cli.email.trim().toLowerCase() == cleanEmail) {
+        if (password == 'cliente123' || password == '123456' || password.length >= 4) {
+          return UserModel(
+            id: cli.id,
+            name: cli.name,
+            email: cli.email,
+            phone: cli.phone,
+            role: 'CLIENT',
+            token: 'mock-jwt-token-${cli.id}',
+          );
+        }
+        throw const AuthException('Contraseña incorrecta (clave por defecto: cliente123).');
+      }
+    }
+
+    // 5. Fallback para nuevas cuentas en modo local sin conexión
+    if (password.length >= 3) {
       String role = 'CLIENT';
       String name = _nameFromEmail(cleanEmail);
       if (cleanEmail.contains('admin')) {
@@ -426,10 +504,6 @@ class LocalDataSource {
           cleanEmail.contains('maestro') ||
           cleanEmail.contains('taller')) {
         role = 'CARPENTER';
-        name = 'Héctor Villarroel';
-      } else if (cleanEmail.contains('cliente')) {
-        role = 'CLIENT';
-        name = 'Roberto Suárez';
       }
       return UserModel(
         id: 'USR-$role-01',

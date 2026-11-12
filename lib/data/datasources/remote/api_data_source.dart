@@ -43,6 +43,31 @@ class ApiDataSource {
     return UserModel.fromJson(res as Map<String, dynamic>);
   }
 
+  Future<void> upsertUserAccount({
+    required String email,
+    String? previousEmail,
+    required String name,
+    String? password,
+    required String role,
+  }) async {
+    final body = <String, dynamic>{
+      'email': email.trim().toLowerCase(),
+      if (previousEmail != null && previousEmail.trim().isNotEmpty)
+        'previousEmail': previousEmail.trim().toLowerCase(),
+      'name': name.trim(),
+      if (password != null && password.trim().isNotEmpty)
+        'password': password.trim(),
+      'role': role,
+    };
+    try {
+      await _apiClient.post('/auth/register-user', body: body);
+    } catch (_) {
+      try {
+        await _apiClient.post('/api/auth/register-user', body: body);
+      } catch (_) {}
+    }
+  }
+
   // ── Catálogo y Compras Directas ─────────────────────────────────────────────
 
   Future<List<ProductModel>> getMarketplaceProducts() async {
@@ -123,7 +148,7 @@ class ApiDataSource {
 
   Future<ClientProfileModel> createClient(Map<String, dynamic> input) async {
     const mutation = r'''
-      mutation ($input: ClientInput!) {
+      mutation ($input: CreateClientInput!) {
         createClient(input: $input) {
           id name email phone address segment
         }
@@ -140,7 +165,7 @@ class ApiDataSource {
     Map<String, dynamic> input,
   ) async {
     const mutation = r'''
-      mutation ($id: ID!, $input: ClientInput!) {
+      mutation ($id: ID!, $input: UpdateClientInput!) {
         updateClient(id: $id, input: $input) {
           id name email phone address segment
         }
@@ -199,7 +224,7 @@ class ApiDataSource {
 
   Future<CarpenterModel> createCarpenter(Map<String, dynamic> input) async {
     const mutation = r'''
-      mutation ($input: CarpenterInput!) {
+      mutation ($input: CreateCarpenterInput!) {
         createCarpenter(input: $input) {
           id name email phone specialty yearsExperience hourlyRate active
         }
@@ -216,7 +241,7 @@ class ApiDataSource {
     Map<String, dynamic> input,
   ) async {
     const mutation = r'''
-      mutation ($id: ID!, $input: CarpenterInput!) {
+      mutation ($id: ID!, $input: UpdateCarpenterInput!) {
         updateCarpenter(id: $id, input: $input) {
           id name email phone specialty yearsExperience hourlyRate active
         }

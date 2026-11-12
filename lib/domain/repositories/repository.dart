@@ -43,6 +43,7 @@ abstract class CarpentryRepository {
     String? phone,
     String? address,
     String segment = 'REGULAR',
+    String? password,
   });
   Future<ClientProfileEntity> updateClient({
     required String id,
@@ -51,6 +52,8 @@ abstract class CarpentryRepository {
     String? phone,
     String? address,
     String segment = 'REGULAR',
+    String? password,
+    String? previousEmail,
   });
   Future<bool> deleteClient(String id);
   Future<List<ClientClusterEntity>> clusterClients();
@@ -65,6 +68,7 @@ abstract class CarpentryRepository {
     int yearsExperience = 3,
     double hourlyRate = 45.0,
     bool active = true,
+    String? password,
   });
   Future<CarpenterEntity> updateCarpenter({
     required String id,
@@ -75,6 +79,8 @@ abstract class CarpentryRepository {
     int yearsExperience = 3,
     double hourlyRate = 45.0,
     bool active = true,
+    String? password,
+    String? previousEmail,
   });
   Future<bool> deleteCarpenter(String id);
   Future<List<OrderEntity>> getCarpenterWorkload(String carpenterId);

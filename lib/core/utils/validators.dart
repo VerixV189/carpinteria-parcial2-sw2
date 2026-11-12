@@ -10,7 +10,7 @@ class Validators {
     if (value == null || value.trim().isEmpty) {
       return 'El correo electrónico es obligatorio';
     }
-    final regex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final regex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$');
     if (!regex.hasMatch(value.trim())) {
       return 'Ingresa un correo electrónico válido';
     }
@@ -21,8 +21,8 @@ class Validators {
     if (value == null || value.isEmpty) {
       return 'La contraseña es obligatoria';
     }
-    if (value.length < 6) {
-      return 'La contraseña debe tener al menos 6 caracteres';
+    if (value.length < 3) {
+      return 'La contraseña debe tener al menos 3 caracteres';
     }
     return null;
   }

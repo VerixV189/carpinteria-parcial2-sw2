@@ -45,6 +45,11 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         await LocalStorage.saveToken(user.token!);
       }
       await LocalStorage.saveUser(user.toJson());
+      await LocalStorage.saveRegisteredUser({
+        ...user.toJson(),
+        'email': email.trim().toLowerCase(),
+        'password': password,
+      });
       return user;
     } on AuthException {
       rethrow;
@@ -81,6 +86,11 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         await LocalStorage.saveToken(user.token!);
       }
       await LocalStorage.saveUser(user.toJson());
+      await LocalStorage.saveRegisteredUser({
+        ...user.toJson(),
+        'email': email.trim().toLowerCase(),
+        'password': password,
+      });
       return user;
     } on AuthException {
       rethrow;
@@ -184,7 +194,18 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     String? phone,
     String? address,
     String segment = 'REGULAR',
+    String? password,
   }) async {
+    final effectivePw =
+        (password != null && password.trim().isNotEmpty) ? password.trim() : 'cliente123';
+    await LocalStorage.saveRegisteredUser({
+      'id': 'CLI-${email.trim().toLowerCase()}',
+      'name': name.trim(),
+      'email': email.trim().toLowerCase(),
+      'phone': phone ?? '',
+      'role': 'CLIENT',
+      'password': effectivePw,
+    });
     try {
       final created = await _remote.createClient({
         'name': name,
@@ -193,6 +214,12 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         'address': ?address,
         'segment': segment,
       });
+      await _remote.upsertUserAccount(
+        email: email,
+        name: name,
+        password: effectivePw,
+        role: 'CLIENT',
+      );
       _isUsingMock = false;
       return created;
     } catch (_) {
@@ -216,7 +243,19 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     String? phone,
     String? address,
     String segment = 'REGULAR',
+    String? password,
+    String? previousEmail,
   }) async {
+    if (password != null && password.trim().isNotEmpty) {
+      await LocalStorage.saveRegisteredUser({
+        'id': id,
+        'name': name.trim(),
+        'email': email.trim().toLowerCase(),
+        'phone': phone ?? '',
+        'role': 'CLIENT',
+        'password': password.trim(),
+      });
+    }
     try {
       final updated = await _remote.updateClient(id, {
         'name': name,
@@ -225,6 +264,13 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         'address': ?address,
         'segment': segment,
       });
+      await _remote.upsertUserAccount(
+        email: email,
+        previousEmail: previousEmail,
+        name: name,
+        password: password,
+        role: 'CLIENT',
+      );
       _isUsingMock = false;
       return updated;
     } catch (_) {
@@ -310,9 +356,20 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     int yearsExperience = 3,
     double hourlyRate = 45.0,
     bool active = true,
+    String? password,
   }) async {
+    final effectivePw =
+        (password != null && password.trim().isNotEmpty) ? password.trim() : 'carp123';
+    await LocalStorage.saveRegisteredUser({
+      'id': 'CARP-${email.trim().toLowerCase()}',
+      'name': name.trim(),
+      'email': email.trim().toLowerCase(),
+      'phone': phone ?? '',
+      'role': 'CARPENTER',
+      'password': effectivePw,
+    });
     try {
-      return await _remote.createCarpenter({
+      final created = await _remote.createCarpenter({
         'name': name,
         'email': email,
         'phone': ?phone,
@@ -321,6 +378,13 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         'hourlyRate': hourlyRate,
         'active': active,
       });
+      await _remote.upsertUserAccount(
+        email: email,
+        name: name,
+        password: effectivePw,
+        role: 'CARPENTER',
+      );
+      return created;
     } catch (_) {
       final model = CarpenterModel(
         id: 'CARP-${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}',
@@ -346,9 +410,21 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     int yearsExperience = 3,
     double hourlyRate = 45.0,
     bool active = true,
+    String? password,
+    String? previousEmail,
   }) async {
+    if (password != null && password.trim().isNotEmpty) {
+      await LocalStorage.saveRegisteredUser({
+        'id': id,
+        'name': name.trim(),
+        'email': email.trim().toLowerCase(),
+        'phone': phone ?? '',
+        'role': 'CARPENTER',
+        'password': password.trim(),
+      });
+    }
     try {
-      return await _remote.updateCarpenter(id, {
+      final updated = await _remote.updateCarpenter(id, {
         'name': name,
         'email': email,
         'phone': ?phone,
@@ -357,6 +433,14 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         'hourlyRate': hourlyRate,
         'active': active,
       });
+      await _remote.upsertUserAccount(
+        email: email,
+        previousEmail: previousEmail,
+        name: name,
+        password: password,
+        role: 'CARPENTER',
+      );
+      return updated;
     } catch (_) {
       final model = CarpenterModel(
         id: id,

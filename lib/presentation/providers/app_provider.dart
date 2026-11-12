@@ -690,6 +690,7 @@ class AppProvider extends ChangeNotifier {
     String? phone,
     String? address,
     String segment = 'REGULAR',
+    String? password,
   }) async {
     try {
       final created = await _repository.createClient(
@@ -698,6 +699,7 @@ class AppProvider extends ChangeNotifier {
         phone: phone,
         address: address,
         segment: segment,
+        password: password,
       );
       _clients = [created, ..._clients];
       notifyListeners();
@@ -716,6 +718,8 @@ class AppProvider extends ChangeNotifier {
     String? phone,
     String? address,
     String segment = 'REGULAR',
+    String? password,
+    String? previousEmail,
   }) async {
     try {
       final updated = await _repository.updateClient(
@@ -725,6 +729,8 @@ class AppProvider extends ChangeNotifier {
         phone: phone,
         address: address,
         segment: segment,
+        password: password,
+        previousEmail: previousEmail,
       );
       _clients = _clients.map((c) => c.id == id ? updated : c).toList();
       notifyListeners();
@@ -764,6 +770,7 @@ class AppProvider extends ChangeNotifier {
     int yearsExperience = 3,
     double hourlyRate = 45.0,
     bool active = true,
+    String? password,
   }) async {
     try {
       final created = await _repository.createCarpenter(
@@ -774,6 +781,7 @@ class AppProvider extends ChangeNotifier {
         yearsExperience: yearsExperience,
         hourlyRate: hourlyRate,
         active: active,
+        password: password,
       );
       _carpenters = [created, ..._carpenters];
       notifyListeners();
@@ -794,6 +802,8 @@ class AppProvider extends ChangeNotifier {
     int yearsExperience = 3,
     double hourlyRate = 45.0,
     bool active = true,
+    String? password,
+    String? previousEmail,
   }) async {
     try {
       final updated = await _repository.updateCarpenter(
@@ -805,6 +815,8 @@ class AppProvider extends ChangeNotifier {
         yearsExperience: yearsExperience,
         hourlyRate: hourlyRate,
         active: active,
+        password: password,
+        previousEmail: previousEmail,
       );
       _carpenters = _carpenters.map((c) => c.id == id ? updated : c).toList();
       notifyListeners();
