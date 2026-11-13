@@ -381,15 +381,39 @@ class QuotationEntity {
     required this.createdAt,
   });
 
-  double get payableAmount =>
-      (finalAmount != null && finalAmount! > 0) ? finalAmount! : totalAmount;
+  bool get hasAdminOffer => finalAmount != null && finalAmount! > 0;
+
+  bool get hasClientCounter =>
+      (counterAmount != null && counterAmount! > 0) ||
+      (clientMessage != null && clientMessage!.trim().isNotEmpty);
+
+  double get payableAmount {
+    final st = status.toUpperCase();
+    if (st == 'QUOTED' && finalAmount != null && finalAmount! > 0) {
+      return finalAmount!;
+    }
+    if (st == 'DRAFT' && counterAmount != null && counterAmount! > 0) {
+      return counterAmount!;
+    }
+    if (finalAmount != null && finalAmount! > 0) {
+      return finalAmount!;
+    }
+    if (counterAmount != null && counterAmount! > 0) {
+      return counterAmount!;
+    }
+    return totalAmount;
+  }
 
   String get statusLabel {
     switch (status.toUpperCase()) {
       case 'DRAFT':
-        return 'En revisión';
+        return hasClientCounter
+            ? 'Contraoferta enviada'
+            : 'En revisión del taller';
       case 'QUOTED':
-        return 'Cotizada';
+        return hasClientCounter
+            ? 'Contraoferta del Taller'
+            : 'Oferta del Taller';
       case 'APPROVED':
         return 'Aprobada';
       case 'REJECTED':

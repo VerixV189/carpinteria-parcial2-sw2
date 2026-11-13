@@ -392,8 +392,8 @@ class AppProvider extends ChangeNotifier {
   void _startRealtimeServices() {
     _realtimeService.connect(includeGraphqlSubscription: !isClientRole);
     _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 18), (_) {
-      if (isAuthenticated) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (isAuthenticated && !AppConfig.forceOfflineMode) {
         refreshSilent();
       }
     });
@@ -582,10 +582,148 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String _quotationSignature(QuotationEntity q) {
+    return '${q.status.toUpperCase()}|'
+        '${q.finalAmount?.toStringAsFixed(0) ?? "-"}|'
+        '${q.counterAmount?.toStringAsFixed(0) ?? "-"}|'
+        '${q.clientMessage ?? "-"}|'
+        '${q.notes ?? "-"}';
+  }
+
+  String get _seenQuotesUserKey {
+    final rolePrefix = isClientRole ? 'CLIENT' : 'ADMIN';
+    final email = (_currentUser?.email ?? 'anon').trim().toLowerCase();
+    return '$rolePrefix:$email';
+  }
+
+  Future<void> _markQuotationSeenByCurrentUser(QuotationEntity q) async {
+    final key = _seenQuotesUserKey;
+    final seen = LocalStorage.getSeenQuotationSignatures(key);
+    seen[q.id] = _quotationSignature(q);
+    await LocalStorage.saveSeenQuotationSignatures(key, seen);
+  }
+
+  Future<void> _checkAndNotifyQuotationChanges(
+    List<QuotationEntity> prevList,
+    List<QuotationEntity> nextList,
+  ) async {
+    final key = _seenQuotesUserKey;
+    final seen = LocalStorage.getSeenQuotationSignatures(key);
+    final prevById = {for (final q in prevList) q.id: q};
+    var changedSeen = false;
+
+    for (final q in nextList) {
+      final sig = _quotationSignature(q);
+      final lastSig = seen[q.id];
+      final prev = prevById[q.id];
+      final isDemoMock = q.id.startsWith('COT-');
+
+      if (lastSig == sig) continue;
+
+      final st = q.status.toUpperCase();
+      final shortId = q.id.substring(0, q.id.length.clamp(0, 8));
+
+      if (isClientRole) {
+        // Notificar al CLIENTE cuando el Administrador envía oferta o contraoferta
+        final adminSentOrUpdatedOffer = st == 'QUOTED' &&
+            q.hasAdminOffer &&
+            (!isDemoMock || lastSig != null) &&
+            (prev == null ||
+                prev.status.toUpperCase() != 'QUOTED' ||
+                prev.finalAmount != q.finalAmount ||
+                prev.notes != q.notes ||
+                lastSig != sig);
+
+        if (adminSentOrUpdatedOffer) {
+          final isCounterFromAdmin = q.hasClientCounter ||
+              (q.finalAmount != null && q.finalAmount != q.totalAmount);
+          final refLabel = q.counterAmount != null
+              ? 'tu propuesta: Bs ${q.counterAmount!.toStringAsFixed(0)}'
+              : 'estimado inicial: Bs ${q.totalAmount.toStringAsFixed(0)}';
+          pushNotification(
+            title: isCounterFromAdmin
+                ? 'Contraoferta / Oferta del Administrador'
+                : 'Oferta Formal del Taller (#$shortId)',
+            body:
+                'El administrador ofertó Bs ${q.payableAmount.toStringAsFixed(0)} para "${q.description}" ($refLabel).'
+                '${q.notes != null && q.notes!.isNotEmpty ? " Nota: ${q.notes}." : ""} Toca para aceptar o contraofertar.',
+            orderId: q.id,
+            status: q.status,
+          );
+        } else if (lastSig != null && prev?.status != q.status) {
+          if (st == 'APPROVED') {
+            pushNotification(
+              title: 'Cotización #$shortId Aprobada',
+              body:
+                  'El administrador aprobó "${q.description}" por Bs ${q.payableAmount.toStringAsFixed(0)}.',
+              orderId: q.id,
+              status: q.status,
+            );
+          } else if (st == 'REJECTED') {
+            pushNotification(
+              title: 'Cotización #$shortId Rechazada',
+              body:
+                  'El taller rechazó la solicitud "${q.description}".',
+              orderId: q.id,
+              status: q.status,
+            );
+          }
+        }
+      } else {
+        // Notificar al ADMINISTRADOR / TALLER cuando el cliente envía contraoferta o nueva cotización
+        final clientSentCounter = st == 'DRAFT' &&
+            q.hasClientCounter &&
+            (!isDemoMock || lastSig != null) &&
+            (prev == null ||
+                prev.counterAmount != q.counterAmount ||
+                prev.clientMessage != q.clientMessage ||
+                prev.status.toUpperCase() != 'DRAFT' ||
+                lastSig != sig);
+
+        if (clientSentCounter) {
+          pushNotification(
+            title: 'Contraoferta de Cliente (#$shortId)',
+            body:
+                'El cliente ${q.clientId} propone Bs ${(q.counterAmount ?? q.payableAmount).toStringAsFixed(0)} para "${q.description}": "${q.clientMessage ?? "Solicita revisión"}"',
+            orderId: q.id,
+            status: q.status,
+          );
+        } else if (lastSig != null && prev == null && !isDemoMock) {
+          pushNotification(
+            title: 'Nueva Cotización de ${q.clientId}',
+            body:
+                'Solicitud: "${q.description}" (${q.woodType}) • Estimado Bs ${q.totalAmount.toStringAsFixed(0)}',
+            orderId: q.id,
+            status: q.status,
+          );
+        } else if (lastSig != null &&
+            prev != null &&
+            prev.status != q.status &&
+            (st == 'APPROVED' || st == 'CONVERTED')) {
+          pushNotification(
+            title: 'Cliente aceptó Cotización #$shortId',
+            body:
+                '${q.clientId} aceptó "${q.description}" por Bs ${q.payableAmount.toStringAsFixed(0)}.',
+            orderId: q.id,
+            status: q.status,
+          );
+        }
+      }
+
+      seen[q.id] = sig;
+      changedSeen = true;
+    }
+
+    if (changedSeen) {
+      await LocalStorage.saveSeenQuotationSignatures(key, seen);
+    }
+  }
+
   Future<void> loadCarpentryData() async {
     _isLoading = true;
     notifyListeners();
     try {
+      final prevQuotes = List<QuotationEntity>.from(_quotations);
       final results = await Future.wait([
         _repository.getProducts(),
         _repository.getOrders(),
@@ -598,8 +736,11 @@ class AppProvider extends ChangeNotifier {
       _products = results[0] as List<ProductEntity>;
       _orders = results[1] as List<OrderEntity>;
       _materials = results[2] as List<WoodMaterialEntity>;
-      _quotations = results[3] as List<QuotationEntity>;
+      final nextQuotes = results[3] as List<QuotationEntity>;
       _invoices = results[4] as List<InvoiceEntity>;
+
+      await _checkAndNotifyQuotationChanges(prevQuotes, nextQuotes);
+      _quotations = nextQuotes;
 
       if (!isClientRole) {
         final adminResults = await Future.wait([
@@ -628,7 +769,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> refreshSilent() async {
     try {
       final prevOrderStatus = {for (final o in _orders) o.id: o.status};
-      final prevQuoteStatus = {for (final q in _quotations) q.id: q.status};
+      final prevQuotes = List<QuotationEntity>.from(_quotations);
 
       final nextOrders = await _repository.getOrders();
       final nextQuotes = await _repository.getQuotations();
@@ -648,18 +789,7 @@ class AppProvider extends ChangeNotifier {
         }
       }
 
-      for (final q in nextQuotes) {
-        final prev = prevQuoteStatus[q.id];
-        if (prev != null && prev != q.status) {
-          pushNotification(
-            title: 'Cotización #${q.id.substring(0, q.id.length.clamp(0, 8))}',
-            body:
-                '${q.description} ahora está: ${q.statusLabel} (Bs ${q.payableAmount.toStringAsFixed(0)})',
-            orderId: q.id,
-            status: q.status,
-          );
-        }
-      }
+      await _checkAndNotifyQuotationChanges(prevQuotes, nextQuotes);
 
       _orders = nextOrders;
       _quotations = nextQuotes;
@@ -894,6 +1024,7 @@ class AppProvider extends ChangeNotifier {
         latitude: latitude,
         longitude: longitude,
       );
+      await _markQuotationSeenByCurrentUser(created);
       _quotations = [created, ..._quotations.where((q) => q.id != created.id)];
       pushNotification(
         title: 'Nueva cotización solicitada',
@@ -928,13 +1059,16 @@ class AppProvider extends ChangeNotifier {
         counterAmount: counterAmount,
         message: message,
       );
+      await _markQuotationSeenByCurrentUser(updated);
       _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
       pushNotification(
         title: action == 'counter'
             ? 'Contraoferta enviada al taller'
-            : 'Cotización actualizada',
+            : (action == 'accept'
+                ? 'Oferta aceptada'
+                : 'Cotización actualizada'),
         body: action == 'counter'
-            ? 'Propusiste Bs ${(counterAmount ?? updated.payableAmount).toStringAsFixed(0)} para "${updated.description}".'
+            ? 'Propusiste Bs ${(counterAmount ?? updated.payableAmount).toStringAsFixed(0)} para "${updated.description}". El administrador recibirá tu propuesta.'
             : 'La cotización "${updated.description}" pasó a estado: ${updated.statusLabel}.',
         orderId: id,
         status: updated.status,
@@ -959,17 +1093,20 @@ class AppProvider extends ChangeNotifier {
         finalAmount: finalAmount,
         notes: notes,
       );
+      await _markQuotationSeenByCurrentUser(updated);
       _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
       pushNotification(
-        title: 'Cotización enviada al cliente',
+        title: 'Oferta / Contraoferta enviada al cliente',
         body:
-            'Precio formal Bs ${finalAmount.toStringAsFixed(0)} enviado para ${updated.description}',
+            'Precio formal de Bs ${finalAmount.toStringAsFixed(0)} enviado para "${updated.description}" (${updated.clientId}).',
         orderId: id,
         status: 'QUOTED',
       );
       notifyListeners();
       return true;
-    } catch (_) {
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
       return false;
     }
   }
@@ -985,6 +1122,7 @@ class AppProvider extends ChangeNotifier {
         finalAmount: finalAmount,
         notes: notes,
       );
+      await _markQuotationSeenByCurrentUser(updated);
       _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
       pushNotification(
         title: 'Cotización aprobada',
@@ -995,7 +1133,9 @@ class AppProvider extends ChangeNotifier {
       );
       notifyListeners();
       return true;
-    } catch (_) {
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
       return false;
     }
   }
@@ -1009,6 +1149,7 @@ class AppProvider extends ChangeNotifier {
         id: id,
         reason: reason,
       );
+      await _markQuotationSeenByCurrentUser(updated);
       _quotations = _quotations.map((q) => q.id == id ? updated : q).toList();
       pushNotification(
         title: 'Cotización rechazada',
@@ -1019,7 +1160,9 @@ class AppProvider extends ChangeNotifier {
       );
       notifyListeners();
       return true;
-    } catch (_) {
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
       return false;
     }
   }

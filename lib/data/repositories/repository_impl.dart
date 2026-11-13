@@ -535,19 +535,64 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     }
   }
 
+  QuotationModel _applyQuotationOverrides(QuotationModel q) {
+    final over = LocalStorage.getQuotationOverrides()[q.id];
+    if (over == null) return q;
+    final overNotes = over['notes']?.toString();
+    final overCounter = over['counterAmount'] != null
+        ? double.tryParse(over['counterAmount'].toString())
+        : null;
+    final overMsg = over['clientMessage']?.toString();
+    final overFinal = over['finalAmount'] != null
+        ? double.tryParse(over['finalAmount'].toString())
+        : null;
+
+    return QuotationModel(
+      id: q.id,
+      clientId: q.clientId,
+      status: q.status,
+      photoUrl: q.photoUrl,
+      description: q.description,
+      woodType: q.woodType,
+      totalAmount: q.totalAmount,
+      finalAmount: q.finalAmount ?? overFinal,
+      notes: (q.notes != null && q.notes!.isNotEmpty) ? q.notes : overNotes,
+      clientMessage: (q.clientMessage != null && q.clientMessage!.isNotEmpty)
+          ? q.clientMessage
+          : overMsg,
+      counterAmount: q.counterAmount ?? overCounter,
+      deliveryType: q.deliveryType,
+      deliveryAddress: q.deliveryAddress,
+      deliveryLatitude: q.deliveryLatitude,
+      deliveryLongitude: q.deliveryLongitude,
+      aiEstimate: q.aiEstimate,
+      createdAt: q.createdAt,
+    );
+  }
+
   @override
   Future<List<QuotationEntity>> getQuotations({String? status}) async {
     try {
       final list = await _remote.getQuotations(status: status);
       _isUsingMock = false;
+      final mergedRemote = <QuotationModel>[];
+      for (final rq in list) {
+        final merged = _applyQuotationOverrides(rq);
+        _local.addOrUpdateQuotation(merged);
+        mergedRemote.add(merged);
+      }
       final localOnly = _local
           .getQuotations(status: status)
           .where((lq) =>
-              lq.id.startsWith('Q-') && !list.any((rq) => rq.id == lq.id))
+              lq.id.startsWith('Q-') && !mergedRemote.any((rq) => rq.id == lq.id))
+          .map(_applyQuotationOverrides)
           .toList();
-      return [...localOnly, ...list];
+      return [...localOnly, ...mergedRemote];
     } catch (_) {
-      return _local.getQuotations(status: status);
+      return _local
+          .getQuotations(status: status)
+          .map(_applyQuotationOverrides)
+          .toList();
     }
   }
 
@@ -629,6 +674,14 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     double? counterAmount,
     String? message,
   }) async {
+    final newStatus = action == 'accept'
+        ? 'APPROVED'
+        : (action == 'reject' ? 'REJECTED' : 'DRAFT');
+    await LocalStorage.saveQuotationOverride(id, {
+      'status': newStatus,
+      'counterAmount': ?counterAmount,
+      if (message != null && message.isNotEmpty) 'clientMessage': message,
+    });
     try {
       final updated = await _remote.respondQuotation(
         id: id,
@@ -637,15 +690,22 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         message: message,
       );
       _isUsingMock = false;
-      return updated;
+      final merged = _applyQuotationOverrides(updated);
+      _local.addOrUpdateQuotation(merged);
+      return merged;
     } catch (_) {
-      final existing = _local.getQuotations().firstWhere(
-            (q) => q.id == id,
-            orElse: () => _local.getQuotations().first,
-          );
-      final newStatus = action == 'accept'
-          ? 'APPROVED'
-          : (action == 'reject' ? 'REJECTED' : 'DRAFT');
+      final allLocal = _local.getQuotations();
+      final existing = allLocal.where((q) => q.id == id).firstOrNull ??
+          (allLocal.isNotEmpty
+              ? allLocal.first
+              : QuotationModel(
+                  id: id,
+                  clientId: 'cliente@carpinteria.com',
+                  status: newStatus,
+                  description: 'Mueble a medida',
+                  totalAmount: counterAmount ?? 1500,
+                  createdAt: 'Hoy',
+                ));
       final updated = QuotationModel(
         id: existing.id,
         clientId: existing.clientId,
@@ -675,6 +735,11 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     required double finalAmount,
     String? notes,
   }) async {
+    await LocalStorage.saveQuotationOverride(id, {
+      'status': 'QUOTED',
+      'finalAmount': finalAmount,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    });
     try {
       final updated = await _remote.sendQuotationFormalPrice(
         id: id,
@@ -682,9 +747,22 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         notes: notes,
       );
       _isUsingMock = false;
-      return updated;
+      final merged = _applyQuotationOverrides(updated);
+      _local.addOrUpdateQuotation(merged);
+      return merged;
     } catch (_) {
-      final existing = _local.getQuotations().firstWhere((q) => q.id == id);
+      final allLocal = _local.getQuotations();
+      final existing = allLocal.where((q) => q.id == id).firstOrNull ??
+          (allLocal.isNotEmpty
+              ? allLocal.first
+              : QuotationModel(
+                  id: id,
+                  clientId: 'cliente@carpinteria.com',
+                  status: 'QUOTED',
+                  description: 'Mueble a medida',
+                  totalAmount: finalAmount,
+                  createdAt: 'Hoy',
+                ));
       final updated = QuotationModel(
         id: existing.id,
         clientId: existing.clientId,
@@ -714,14 +792,33 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     double? finalAmount,
     String? notes,
   }) async {
+    await LocalStorage.saveQuotationOverride(id, {
+      'status': 'APPROVED',
+      'finalAmount': ?finalAmount,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    });
     try {
-      return await _remote.approveQuotation(
+      if (finalAmount != null && finalAmount > 0) {
+        try {
+          await _remote.sendQuotationFormalPrice(
+            id: id,
+            finalAmount: finalAmount,
+            notes: notes,
+          );
+        } catch (_) {}
+      }
+      final updated = await _remote.approveQuotation(
         id: id,
         finalAmount: finalAmount,
         notes: notes,
       );
+      final merged = _applyQuotationOverrides(updated);
+      _local.addOrUpdateQuotation(merged);
+      return merged;
     } catch (_) {
-      final existing = _local.getQuotations().firstWhere((q) => q.id == id);
+      final allLocal = _local.getQuotations();
+      final existing = allLocal.where((q) => q.id == id).firstOrNull ??
+          allLocal.first;
       final updated = QuotationModel(
         id: existing.id,
         clientId: existing.clientId,
@@ -732,6 +829,8 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         totalAmount: existing.totalAmount,
         finalAmount: finalAmount ?? existing.finalAmount ?? existing.totalAmount,
         notes: notes ?? existing.notes,
+        clientMessage: existing.clientMessage,
+        counterAmount: existing.counterAmount,
         deliveryType: existing.deliveryType,
         deliveryAddress: existing.deliveryAddress,
         createdAt: existing.createdAt,
@@ -745,10 +844,19 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
     required String id,
     String? reason,
   }) async {
+    await LocalStorage.saveQuotationOverride(id, {
+      'status': 'REJECTED',
+      if (reason != null && reason.isNotEmpty) 'notes': reason,
+    });
     try {
-      return await _remote.rejectQuotation(id: id, reason: reason);
+      final updated = await _remote.rejectQuotation(id: id, reason: reason);
+      final merged = _applyQuotationOverrides(updated);
+      _local.addOrUpdateQuotation(merged);
+      return merged;
     } catch (_) {
-      final existing = _local.getQuotations().firstWhere((q) => q.id == id);
+      final allLocal = _local.getQuotations();
+      final existing = allLocal.where((q) => q.id == id).firstOrNull ??
+          allLocal.first;
       final updated = QuotationModel(
         id: existing.id,
         clientId: existing.clientId,
@@ -759,6 +867,8 @@ class CarpentryRepositoryImpl implements CarpentryRepository {
         totalAmount: existing.totalAmount,
         finalAmount: existing.finalAmount,
         notes: reason ?? existing.notes,
+        clientMessage: existing.clientMessage,
+        counterAmount: existing.counterAmount,
         deliveryType: existing.deliveryType,
         deliveryAddress: existing.deliveryAddress,
         createdAt: existing.createdAt,

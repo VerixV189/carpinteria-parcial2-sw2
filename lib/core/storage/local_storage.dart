@@ -12,6 +12,8 @@ class LocalStorage {
   static const String _baseUrlKey = 'custom_base_url';
   static const String _forceOfflineKey = 'force_offline_mode';
   static const String _registeredUsersKey = 'local_registered_users';
+  static const String _quotationOverridesKey = 'local_quotation_overrides';
+  static const String _seenQuotationSigsKey = 'seen_quotation_signatures';
 
   /// Duración estándar de la sesión activa abierta (24 horas)
   static const Duration sessionTtl = Duration(hours: 24);
@@ -207,5 +209,55 @@ class LocalStorage {
     users.removeWhere((u) => u['email'] == userWithPass['email']);
     users.add(userWithPass);
     await _prefs!.setString(_registeredUsersKey, jsonEncode(users));
+  }
+
+  static Map<String, Map<String, dynamic>> getQuotationOverrides() {
+    final raw = _prefs?.getString(_quotationOverridesKey);
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map(
+        (k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map)),
+      );
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> saveQuotationOverride(
+    String quotationId,
+    Map<String, dynamic> data,
+  ) async {
+    await init();
+    final map = getQuotationOverrides();
+    final existing = map[quotationId] ?? <String, dynamic>{};
+    map[quotationId] = {
+      ...existing,
+      ...data,
+      'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+    };
+    await _prefs!.setString(_quotationOverridesKey, jsonEncode(map));
+  }
+
+  static Map<String, String> getSeenQuotationSignatures(String userKey) {
+    final raw = _prefs?.getString('$_seenQuotationSigsKey:$userKey');
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, v.toString()));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> saveSeenQuotationSignatures(
+    String userKey,
+    Map<String, String> signatures,
+  ) async {
+    await init();
+    await _prefs!.setString(
+      '$_seenQuotationSigsKey:$userKey',
+      jsonEncode(signatures),
+    );
   }
 }

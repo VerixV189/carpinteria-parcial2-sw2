@@ -723,42 +723,59 @@ class _QuotationsTabState extends State<_QuotationsTab> {
   }
 
   void _showCounterOfferDialog(QuotationEntity q) {
+    final baseAmount = q.finalAmount ?? q.counterAmount ?? q.totalAmount;
     final amountCtrl = TextEditingController(
-      text: (q.payableAmount * 0.9).toStringAsFixed(0),
+      text: (baseAmount * 0.9).toStringAsFixed(0),
     );
     final msgCtrl = TextEditingController(
-      text: '¿Podrían dejarlo en este monto si pago al contado hoy?',
+      text: q.clientMessage?.isNotEmpty == true
+          ? q.clientMessage!
+          : '¿Podrían dejarlo en este monto si pago al contado hoy?',
     );
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Proponer Contraoferta'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Precio cotizado por el taller: Bs ${q.payableAmount.toStringAsFixed(0)}',
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Tu monto propuesto (Bs)',
-                prefixIcon: Icon(Icons.payments_outlined),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Estimado inicial IA: Bs ${q.totalAmount.toStringAsFixed(0)}',
+                style: const TextStyle(fontSize: 12.5, color: Colors.black54),
               ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: msgCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Mensaje para el carpintero',
-                prefixIcon: Icon(Icons.chat_bubble_outline),
+              if (q.hasAdminOffer) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Oferta actual del Administrador: Bs ${q.finalAmount!.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: amountCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Tu monto propuesto (Bs)',
+                  prefixIcon: Icon(Icons.payments_outlined),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              TextField(
+                controller: msgCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Mensaje para el administrador / taller',
+                  prefixIcon: Icon(Icons.chat_bubble_outline),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -768,13 +785,28 @@ class _QuotationsTabState extends State<_QuotationsTab> {
           ElevatedButton(
             onPressed: () async {
               final provider = AppScope.of(context);
+              final proposed =
+                  double.tryParse(amountCtrl.text) ?? q.payableAmount;
+              final msg = msgCtrl.text.trim().isEmpty
+                  ? 'Solicito revisión de precio a Bs ${proposed.toStringAsFixed(0)}'
+                  : msgCtrl.text.trim();
               await provider.respondQuotation(
                 id: q.id,
                 action: 'counter',
-                counterAmount: double.tryParse(amountCtrl.text) ?? q.payableAmount,
-                message: msgCtrl.text.trim(),
+                counterAmount: proposed,
+                message: msg,
               );
               if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Contraoferta de Bs ${proposed.toStringAsFixed(0)} enviada al administrador.',
+                    ),
+                    backgroundColor: AppTheme.primaryDarkWood,
+                  ),
+                );
+              }
             },
             child: const Text('Enviar Contraoferta'),
           ),
@@ -1221,13 +1253,24 @@ class _QuotationsTabState extends State<_QuotationsTab> {
           const SizedBox(height: 20),
 
           // ── Lista de Cotizaciones y Negociación ────────────────────────────
-          const Text(
-            'Mis Cotizaciones y Seguimiento de Negociación',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.primaryDarkWood,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Mis Cotizaciones y Seguimiento de Negociación',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryDarkWood,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: provider.loadCarpentryData,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Actualizar'),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           if (quotations.isEmpty)
@@ -1244,6 +1287,7 @@ class _QuotationsTabState extends State<_QuotationsTab> {
           else
             ...quotations.map((q) {
               final statusUpper = q.status.toUpperCase();
+              final isDraft = statusUpper == 'DRAFT';
               final isQuoted = statusUpper == 'QUOTED';
               final isApproved = statusUpper == 'APPROVED';
               final isConverted = statusUpper == 'CONVERTED';
@@ -1314,30 +1358,148 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                           color: Colors.black87,
                         ),
                       ),
-                      if (q.notes != null && q.notes!.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            'Nota del taller: ${q.notes}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.blueGrey.shade800,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
+                      const SizedBox(height: 8),
+                      // ── Resumen claro de Precios y Contraofertas ──
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.brown.shade50.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.brown.shade200),
                         ),
-                      if (q.counterAmount != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            'Tu contraoferta enviada: Bs ${q.counterAmount!.toStringAsFixed(0)} (${q.clientMessage ?? ""})',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange.shade900,
-                              fontWeight: FontWeight.w600,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Precio inicial / Estimación IA:',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                                Text(
+                                  'Bs ${q.totalAmount.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.brown.shade800,
+                                    decoration: (q.hasAdminOffer ||
+                                            q.hasClientCounter)
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                            if (q.hasClientCounter) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.orange.shade300,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.handshake_outlined,
+                                          size: 16,
+                                          color: Colors.orange.shade900,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            'Tu Contraoferta enviada: Bs ${(q.counterAmount ?? q.payableAmount).toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.orange.shade900,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (q.clientMessage != null &&
+                                        q.clientMessage!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          'Mensaje: "${q.clientMessage}"',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            color: Colors.brown.shade800,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            if (q.hasAdminOffer) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.green.shade400,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.local_offer_rounded,
+                                          size: 16,
+                                          color: Colors.green.shade800,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            'Oferta / Contraoferta del Administrador: Bs ${q.finalAmount!.toStringAsFixed(0)}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green.shade900,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (q.notes != null && q.notes!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          'Condiciones del taller: "${q.notes}"',
+                                          style: TextStyle(
+                                            fontSize: 11.5,
+                                            fontStyle: FontStyle.italic,
+                                            color: Colors.green.shade900,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
+                      ),
                       const Divider(height: 18),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1346,9 +1508,11 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                q.finalAmount != null
-                                    ? 'Precio Formal del Taller'
-                                    : 'Estimación IA',
+                                isQuoted && q.hasAdminOffer
+                                    ? 'Precio Ofertado por el Taller'
+                                    : (isDraft && q.hasClientCounter
+                                        ? 'Tu Contraoferta en Revisión'
+                                        : 'Monto Actual'),
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.black54,
@@ -1357,66 +1521,14 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                               Text(
                                 'Bs ${q.payableAmount.toStringAsFixed(0)}',
                                 style: const TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 19,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.primaryWood,
                                 ),
                               ),
                             ],
                           ),
-                          if (isQuoted)
-                            Wrap(
-                              spacing: 6,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: () => _showCounterOfferDialog(q),
-                                  child: const Text(
-                                    'Contraoferta',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                                FilledButton.icon(
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: Colors.green.shade700,
-                                  ),
-                                  onPressed: () async {
-                                    await provider.respondQuotation(
-                                      id: q.id,
-                                      action: 'accept',
-                                    );
-                                    if (!context.mounted) return;
-                                    await PaymentAndInvoiceModals
-                                        .showPaymentGatewayModal(
-                                      context,
-                                      quotationId: q.id,
-                                      description: q.description,
-                                      amount: q.payableAmount,
-                                    );
-                                  },
-                                  icon: const Icon(Icons.payment, size: 16),
-                                  label: const Text(
-                                    'Aceptar y Pagar',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
-                            )
-                          else if (isApproved)
-                            FilledButton.icon(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: AppTheme.primaryWood,
-                              ),
-                              onPressed: () =>
-                                  PaymentAndInvoiceModals.showPaymentGatewayModal(
-                                context,
-                                quotationId: q.id,
-                                description: q.description,
-                                amount: q.payableAmount,
-                              ),
-                              icon: const Icon(Icons.credit_card, size: 16),
-                              label: const Text('Pagar con Tarjeta'),
-                            )
-                          else if (isConverted)
+                          if (isConverted)
                             const Chip(
                               avatar: Icon(
                                 Icons.check_circle,
@@ -1430,6 +1542,69 @@ class _QuotationsTabState extends State<_QuotationsTab> {
                             ),
                         ],
                       ),
+                      if (isQuoted || isDraft || isApproved) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (isQuoted || isDraft)
+                              OutlinedButton.icon(
+                                onPressed: () => _showCounterOfferDialog(q),
+                                icon: const Icon(
+                                  Icons.handshake_outlined,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  q.hasClientCounter
+                                      ? 'Actualizar Contraoferta'
+                                      : 'Proponer Contraoferta',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            if (isQuoted)
+                              FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: Colors.green.shade700,
+                                ),
+                                onPressed: () async {
+                                  await provider.respondQuotation(
+                                    id: q.id,
+                                    action: 'accept',
+                                  );
+                                  if (!context.mounted) return;
+                                  await PaymentAndInvoiceModals
+                                      .showPaymentGatewayModal(
+                                    context,
+                                    quotationId: q.id,
+                                    description: q.description,
+                                    amount: q.payableAmount,
+                                  );
+                                },
+                                icon: const Icon(Icons.payment, size: 16),
+                                label: Text(
+                                  'Aceptar y Pagar (Bs ${q.payableAmount.toStringAsFixed(0)})',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            if (isApproved)
+                              FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryWood,
+                                ),
+                                onPressed: () => PaymentAndInvoiceModals
+                                    .showPaymentGatewayModal(
+                                  context,
+                                  quotationId: q.id,
+                                  description: q.description,
+                                  amount: q.payableAmount,
+                                ),
+                                icon: const Icon(Icons.credit_card, size: 16),
+                                label: const Text('Pagar con Tarjeta'),
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
